@@ -1,8 +1,8 @@
 import re, os, logging
 import networkx as nx
-from Use import Use
-from Package import PackageBuilder
-from File import File
+from .Use import Use
+from .Package import PackageBuilder
+from .File import File
 
 class Rules(object):
 
@@ -16,7 +16,7 @@ class Rules(object):
 
     def compile(self, rules):
         all_exps = []
-        for exp, op in rules.iteritems():
+        for exp, op in rules.items():
             all_exps.append(exp)
             self._exps.append(exp)
             self._ops.append(op)
@@ -39,12 +39,15 @@ class Rules(object):
                     self.graph.add_edge(srcs, self._placeholder(), operation=op, builder=None)
 
     def setup_packages(self):
+        to_add = []
         for u, v, data in self.graph.edges_iter(data=True):
             op = data.get('operation')
             if op and op.has_packages():
-                for pkg in op.package_iter():
-                    self.graph.add_edge(pkg, u)
-                    self.packages.add(pkg)
+                to_add.append((op, u))
+        for op, u in to_add:
+            for pkg in op.package_iter():
+                self.graph.add_edge(pkg, u)
+                self.packages.add(pkg)
 
 
     def build_packages(self):
@@ -55,7 +58,7 @@ class Rules(object):
 
     def draw_graph(self, path=None):
         import matplotlib.pyplot as plt
-        nx.draw_graphviz(self.graph)
+        nx.draw(self.graph)
         if path:
             plt.savefig(path)
         else:

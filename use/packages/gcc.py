@@ -1,12 +1,12 @@
 import re
-import Build
-from Build.utils import getarg
-from Build.conv import to_list
+import use
+from ..utils import getarg
+from ..conv import to_list
 
 ##
 ##
 ##
-class Builder(Build.Builder):
+class Builder(use.Builder):
 
     _prog = re.compile('(' + ')|('.join([
     ]) + ')')
@@ -20,13 +20,13 @@ class Builder(Build.Builder):
 ##
 ##
 ##
-class Version(Build.Version):
+class Version(use.Version):
 
     version = 'default'
     binaries = ['gcc']
 
     def _actions(self, sources, targets=[]):
-        return [Build.Action('%s -c -o %s %s'%(
+        return [use.Action('%s -c -o %s %s'%(
             self.binaries[0].path,
             targets[0].path,
             ' '.join([s.path for s in sources]),
@@ -35,8 +35,8 @@ class Version(Build.Version):
 ##
 ## GNU "gcc" tool.
 ##
-class gcc(Build.Package):
-    default_target_node = Build.File
+class gcc(use.Package):
+    default_target_node = use.File
     default_builder = Builder
     versions = [Version]
 

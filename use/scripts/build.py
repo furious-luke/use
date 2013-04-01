@@ -5,10 +5,10 @@
 ##
 
 import os, sys, logging
-from Build.Options import options
-from Build.Use import use
-from Build.Default import default
-from Build.Rules import Rules
+from use.Options import options
+from use.Use import use
+from use.Default import default
+from use.Rules import Rules
 
 # Setup logging.
 logging.basicConfig(level=logging.DEBUG)
@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.DEBUG)
 launch_dir = os.getcwd()
 script = os.path.join(launch_dir, 'build.py')
 if not os.path.exists(script):
-    print 'No "build.py" to execute.'
+    print('No "build.py" to execute.')
     sys.exit(1)
 
 # Setup the locals dictionary.
@@ -27,7 +27,7 @@ locals_dict = {
 
 # Try to execute the build script.
 locals_dict = {}
-execfile(script, globals(), locals_dict)
+exec(open(script).read(), globals(), locals_dict)
 
 # Prepare the rules.
 rules = Rules()
@@ -36,4 +36,4 @@ rules.search()
 rules.setup_packages()
 rules.build_packages()
 
-# rules.draw_graph()
+rules.draw_graph()

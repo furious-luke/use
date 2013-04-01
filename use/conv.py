@@ -1,6 +1,6 @@
 import dateutil.parser, re, unicodedata
 from xml.dom import minidom
-import containers
+from . import containers
 
 # Don't assume googlemaps is available.
 try:
@@ -17,8 +17,8 @@ def web_safe_translate(x):
 
 
 def web_safe_make_translator():
-    translations = ''.join(web_safe_translate(chr(c)) or chr(c) for c in xrange(256))
-    deletions = ''.join(chr(c) for c in xrange(256) if web_safe_translate(chr(c)) is None)
+    translations = ''.join(web_safe_translate(chr(c)) or chr(c) for c in range(256))
+    deletions = ''.join(chr(c) for c in range(256) if web_safe_translate(chr(c)) is None)
     return translations, deletions
 
 
@@ -47,7 +47,7 @@ def to_iter(value):
 def to_list(value):
     if value is None:
         return []
-    elif isinstance(value, (str, unicode, dict)):
+    elif isinstance(value, (str, bytes, dict)):
         return [value]
     elif hasattr(value, '__iter__'):
         return list(value)
@@ -58,7 +58,7 @@ def to_list(value):
 def to_bool(value):
     if value is None:
         return None
-    if isinstance(value, (str, unicode)):
+    if isinstance(value, str):
         return not value.lower() in ['f', 'false']
     return bool(value)
 
@@ -67,9 +67,9 @@ def to_price(value, safe=False):
     if value is None:
         return None
     exp = r'\$\s*(\d+(?:\.\d+)?)'
-    if isinstance(value, (str, unicode)):
+    if isinstance(value, (str, bytes)):
         value = ' '.join(value.splitlines())
-        if isinstance(value, unicode):
+        if isinstance(value, bytes):
             match = re.search(exp, value, re.UNICODE)
         else:
             match = re.search(exp, value)

@@ -16,7 +16,7 @@ def load_class(module_name, class_name=None):
     try:
         klass = getattr(__import__(module_name, fromlist=[class_name]), class_name)
     except:
-        module_name = 'Build.packages.' + module_name
+        module_name = 'use.packages.' + module_name
         klass = getattr(__import__(module_name, fromlist=[class_name]), class_name)
     return klass
 

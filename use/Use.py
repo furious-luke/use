@@ -1,4 +1,4 @@
-from utils import load_class, getarg
+from .utils import load_class, getarg
 
 # Keep track of used packages.
 used_packages = {}

@@ -1,5 +1,5 @@
 import logging
-from utils import run_command
+from .utils import run_command
 
 class CommandFailed(Exception):
 

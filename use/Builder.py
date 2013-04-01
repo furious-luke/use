@@ -1,4 +1,4 @@
-from conv import to_list
+from .conv import to_list
 
 class Builder(object):
 

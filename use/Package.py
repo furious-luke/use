@@ -1,10 +1,10 @@
 import os, logging
-from Node import Node
-from Builder import Builder
-from Platform import platform
-from Location import Location
-from conv import to_list
-from utils import strip_missing
+from .Node import Node
+from .Builder import Builder
+from .Platform import platform
+from .Location import Location
+from .conv import to_list
+from .utils import strip_missing
 
 ##
 ## A package installation. Packages may have multiple

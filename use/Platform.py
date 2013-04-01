@@ -1,6 +1,6 @@
 import os, platform
-from Location import Location
-from utils import strip_missing, run_command
+from .Location import Location
+from .utils import strip_missing, run_command
 
 class Platform(object):
 
