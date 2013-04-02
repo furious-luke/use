@@ -9,6 +9,7 @@ from use.Options import options
 from use.Use import use
 from use.Default import default
 from use.Rules import Rules
+from use.Rules import rules
 
 # Setup logging.
 logging.basicConfig(level=logging.DEBUG)
@@ -30,10 +31,11 @@ locals_dict = {}
 exec(open(script).read(), globals(), locals_dict)
 
 # Prepare the rules.
-rules = Rules()
-rules.compile(locals_dict['rules'])
+rules.compile()
 rules.search()
 rules.setup_packages()
-rules.build_packages()
 
-rules.draw_graph()
+# Supply the targets to the task master.
+task_master.add(rules.targets())
+
+# rules.draw_graph()
