@@ -4,4 +4,4 @@ from .Node import Node
 from .File import File
 from .Action import Action
 from .Use import use
-from . import Rules
+from .Rule import rule

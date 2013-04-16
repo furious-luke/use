@@ -1,4 +1,4 @@
-import re
+import os, re, logging
 import use
 from ..utils import getarg
 from ..conv import to_list
@@ -20,8 +20,7 @@ class Builder(use.Builder):
 ##
 ##
 ##
-class Version(use.Version):
-
+class Default(use.Version):
     version = 'default'
     binaries = ['gcc']
 
@@ -38,5 +37,16 @@ class Version(use.Version):
 class gcc(use.Package):
     default_target_node = use.File
     default_builder = Builder
-    versions = [Version]
+    versions = [Default]
 
+    ##
+    ## gcc's productions. The standard gcc production will
+    ## produce a single object file for each source file.
+    ##
+    def productions(self, nodes, options={}):
+        prods = []
+        for node in nodes:
+            obj_filename = os.path.splitext(node.path)[0] + '.o'
+            prods.append(((node,), obj_filename))
+        logging.debug('gcc: Productions = ' + str(prods))
+        return prods

@@ -16,9 +16,12 @@ class Installation(object):
     def __init__(self, version, location, **kwargs):
         self.version = version
         self.location = location
-        self.binaries = []
-        self.headers = []
-        self.libraries = []
+        self.binaries = kwargs.get('binaries', [])
+        self.headers = kwargs.get('headers', [])
+        self.libraries = kwargs.get('libraries', [])
+
+    def productions(self, nodes, options={}):
+        return self.version.productions(nodes, options)
 
 ##
 ## Represents a package version. Packages may require
@@ -32,6 +35,12 @@ class Version(object):
         self.installations = []
         self.patterns = []
         self._checked_locations = set()
+        
+        # If there are any missing fields, add an empty
+        # list to prevent errors.
+        for field in ['binaries', 'headers', 'libraries']:
+            if not hasattr(self, field):
+                setattr(self, field, [])
 
     def __eq__(self, op):
         return self._ver == op._ver
@@ -42,6 +51,7 @@ class Version(object):
     def search(self):
         logging.debug('Searching for version ' + self.version)
         for loc in self.iter_locations():
+            self.simplify_location(loc)
             if loc not in self._checked_locations:
                 self.check_location(loc)
                 self._checked_locations.add(loc)
@@ -50,31 +60,48 @@ class Version(object):
         for loc in platform.iter_locations(self.patterns):
             yield loc
 
+    def simplify_location(self, location):
+        if not self.binaries:
+            location.binary_dirs = []
+        if not self.headers:
+            location.header_dirs = []
+        if not self.libraries:
+            location.library_dirs = []
+
     def check_location(self, location):
         logging.debug('Checking location ' + repr(location))
 
         # First check if all the required files exist.
-        res = self.find_binaries(getattr(self, 'binaries', []), location.binary_dirs)
-        if res[0]:
-            res = self.find_headers(getattr(self, 'headers', []), location.header_dirs)
-        if res[0]:
-            res = self.find_libraries(getattr(self, 'libraries', []), location.library_dirs)
+        bins = []
+        hdrs = []
+        libs = []
+        res, bins = self.find_binaries(self.binaries, location.binary_dirs)
+        if res:
+            res, hdrs = self.find_headers(self.headers, location.header_dirs)
+        if res:
+            res, libs = self.find_libraries(self.libraries, location.library_dirs)
 
         # Now check that the version matches.
-        if res[0]:
+        if res:
             res = self.check_version(location)
+            if res:
+                logging.debug('Version matches.')
+            else:
+                logging.debug('Version does not match.')
 
         # Create an installation and perform any final checks.
-        if res[0]:
-            inst = Installation(self, location)
+        if res:
+            inst = Installation(self, location, binaries=bins, headers=hdrs, libraries=libs)
             if self.check_installation(inst):
                 self.installations.append(inst)
                 logging.debug('Found valid installation at ' + repr(location))
+            else:
+                logging.debug('Installation check failed.')
 
-        return res[0]
+        return res
 
     def check_version(self, location):
-        return (True, None)
+        return True
 
     def check_installation(self, inst):
         return True
@@ -85,8 +112,10 @@ class Version(object):
     def find_binaries(self, bins, bin_dirs):
         logging.debug('Searching for binaries: ' + repr(bins))
         res = self._find_files(bins, bin_dirs)
-        if not res:
-            logging.debug('Failed to find binary: ', res[1])
+        if not res[0]:
+            logging.debug('Failed to find binary: ' + res[1])
+        else:
+            logging.debug('Found all binaries.')
         # if not res[0]:
         #     inst.set_missing_binary(res[1])
         # else:
@@ -99,8 +128,10 @@ class Version(object):
     def find_headers(self, hdrs, hdr_dirs):
         logging.debug('Searching for headers: ' + repr(hdrs))
         res = self._find_files(hdrs, hdr_dirs)
-        if not res:
-            logging.debug('Failed to find header: ', res[1])
+        if not res[0]:
+            logging.debug('Failed to find header: ' + res[1])
+        else:
+            logging.debug('Found all headers.')
         # if not res[0]:
         #     inst.set_missing_header(res[1])
         # else:
@@ -113,13 +144,22 @@ class Version(object):
     def find_libraries(self, libs, lib_dirs):
         logging.debug('Searching for libraries: ' + repr(libs))
         res = self._find_files(libs, lib_dirs)
-        if not res:
-            logging.debug('Failed to find library: ', res[1])
+        if not res[0]:
+            logging.debug('Failed to find library: ' + res[1])
+        else:
+            logging.debug('Found all libraries.')
         # if not res[0]:
         #     inst.set_missing_library(res[1])
         # else:
         #     inst.set_library_dirs(res[1])
         return res
+
+    ##
+    ## Calculate the products of nodes. By default this
+    ## will call the package's productions.
+    ##
+    def productions(self, nodes, options={}):
+        return self.package.productions(nodes, options)
 
     ##
     ##
@@ -128,8 +168,9 @@ class Version(object):
         files = to_list(files)
         dirs = to_list(dirs)
 
-        # Track all directories that contain these files.
-        found_dirs = {}
+        # Keep a list of the full path to the found
+        # files.
+        found_paths = []
 
         # Must be able to find all required headers.
         for fl in files:
@@ -140,9 +181,11 @@ class Version(object):
 
                 # Does the file exist in this directory?
                 path = os.path.join(dr, fl)
+                logging.debug('Checking for ' + path)
                 if os.path.exists(path):
+                    logging.debug('Found it.')
                     found = True
-                    found_dirs[fl] = dr
+                    found_paths.append(os.path.join(dr, fl))
                     break
 
             # If we failed to find this header we
@@ -152,7 +195,7 @@ class Version(object):
                 return (False, fl)
 
         # Success, all headers found.
-        return (True, found_dirs)
+        return (True, found_paths)
 
     def _builder(self, sources, targets=[]):
         bldr = getattr(self, 'default_builder', self.package.default_builder)
@@ -185,6 +228,11 @@ class Package(Node):
         text = self.name
         return text
 
+    def iter_installations(self):
+        for ver in self.versions:
+            for inst in ver.installations:
+                yield inst
+
     def binaries(self):
         pass
 
@@ -194,6 +242,14 @@ class Package(Node):
     def headers(self):
         pass
 
+    ##
+    ## Default productions operation. Each version may have its
+    ## own production rules. However they can also just refer to
+    ## this default operation.
+    ##
+    def productions(self, nodes, options={}):
+        assert 0, 'Should never get to this one.' 
+
     def build(self):
         logging.debug('Building package ' + self.name)
         for ver in self.versions:
@@ -202,19 +258,38 @@ class Package(Node):
 ##
 ##
 ##
-class PackageBuilder(Builder):
+class Search(Node):
 
     def __init__(self, package):
+        super(Search, self).__init__()
         self.package = package
 
     ##
     ## Locate the package. Use the set of versions given to a
     ## package to search common locations for installations.
     ##
-    def __call__(self):
-        for ver in self.pkg.versions:
-            ver.search()
+    def update(self, graph):
+
+        # Let the package perform the search operations. This
+        # must be like this because the only the package and
+        # versions know how to search.
+        self.package.search()
+
+        # Set the products in the graph.
+        graph.set_products(self, self.package.installations)
 
     def __repr__(self):
-        text = 'PackageBuilder(' + repr(self.package) + ')'
+        text = 'Search(' + repr(self.package) + ')'
         return text
+
+##
+##
+##
+class Install(Builder):
+    pass
+
+##
+##
+##
+class Download(Builder):
+    pass

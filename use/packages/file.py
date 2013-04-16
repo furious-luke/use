@@ -1,12 +1,12 @@
 import re
-import Build
-from Build.utils import getarg
-from Build.conv import to_list
+import use
+from ..utils import getarg
+from ..conv import to_list
 
 ##
 ##
 ##
-class Builder(Build.Builder):
+class Builder(use.Builder):
 
     _prog = re.compile('(' + ')|('.join([
         'symbolic link to',
@@ -27,7 +27,7 @@ class Builder(Build.Builder):
 ##
 ##
 ##
-class FileType(Build.Node):
+class FileType(use.Node):
 
     SYMBOLIC_LINK = 0
     AR_ARCHIVE = 1
@@ -44,17 +44,17 @@ class FileType(Build.Node):
 ##
 ##
 ##
-class Version(Build.Version):
-
+class Default(use.Version):
     version = 'default'
+    binaries = ['file']
 
     def _actions(self, sources, targets=[]):
-        return [Build.Action('%s %s'%(self.binaries()[0].path, sources[0].path))]
+        return [use.Action('%s %s'%(self.binaries()[0].path, sources[0].path))]
 
 ##
 ## GNU "file" tool.
 ##
-class file(Build.Package):
+class file(use.Package):
     default_target_node = FileType
     default_builder = Builder
-    versions = [Version]
+    versions = [Default]

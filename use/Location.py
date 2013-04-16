@@ -18,13 +18,16 @@ class Location(object):
                 self.library_dirs == op.library_dirs)
 
     def __repr__(self):
-        text = {
-            'base': self.base,
-            'binary_dirs': self.binary_dirs,
-            'header_dirs': self.header_dirs,
-            'library_dirs': self.library_dirs
-        }
-        return repr(text)
+        text = []
+        if self.base:
+            text.append('base: ' + self.base)
+        if self.binary_dirs:
+            text.append('binary dirs: ' + str(self.binary_dirs))
+        if self.header_dirs:
+            text.append('header dirs: ' + str(self.header_dirs))
+        if self.library_dirs:
+            text.append('library dirs: ' + str(self.library_dirs))
+        return ', '.join(text)
 
     def _iter_dirs(self, dirs):
         for d in dirs:
