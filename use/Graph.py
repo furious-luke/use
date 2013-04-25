@@ -2,6 +2,19 @@ import re, os, logging
 import networkx as nx
 from .Use import Use
 from .File import File
+from .Node import Node
+
+##
+##
+##
+class Placeholder(Node):
+
+    def __init__(self, id):
+        super(Placeholder, self).__init__()
+        self.id = id
+
+    def __repr__(self):
+        return 'Placeholder(%d)'%self.id
 
 ##
 ##
@@ -17,14 +30,49 @@ class Graph(object):
         self._ph = 0
         self.packages = set()
 
-    ##
-    ## Add a rule to the graph.
-    ## @param[in] rule The rule to add.
-    ##
-    def add(self, rule):
-        logging.debug('Adding rule: ' + str(rule))
-        self.rules.append(rule)
-        return rule
+    def __repr__(self):
+        return repr(self._graph)
+
+    # ##
+    # ## Add a rule to the graph.
+    # ## @param[in] rule The rule to add.
+    # ##
+    # def add(self, rule):
+    #     logging.debug('Adding rule: ' + str(rule))
+    #     self.rules.append(rule)
+    #     return rule
+
+    def add_node(self, *args, **kwargs):
+        return self._graph.add_node(*args, **kwargs)
+
+    def has_node(self, *args, **kwargs):
+        return self._graph.has_node(*args, **kwargs)
+
+    def add_edge(self, *args, **kwargs):
+        return self._graph.add_edge(*args, **kwargs)
+
+    def first_child(self, node):
+        children = self._graph.successors(node)
+        if len(children):
+            return children[0]
+        return None
+
+    def predecessors(self, *args, **kwargs):
+        return self._graph.predecessors(*args, **kwargs)
+
+    def update(self):
+
+        # Begin with a list of targets to process. By default
+        # this is all leaf nodes.
+        targets = []
+        for node in self._graph.nodes_iter():
+            if not self._graph.successors(node):
+                targets.append(node)
+
+        # Execute each target node to handle invalidation and
+        # updating.
+        for tgt in targets:
+            tgt(self)
 
     ##
     ## Prepare regular expressions for searching.
@@ -193,6 +241,7 @@ class Graph(object):
                 self._graph.add_edge(prior, product)
 
     def draw_graph(self, path=None):
+        path = 'plot.png'
         import matplotlib.pyplot as plt
         nx.draw(self._graph)
         if path:
@@ -200,9 +249,9 @@ class Graph(object):
         else:
             plt.show()
 
-    def _placeholder(self):
+    def placeholder(self):
         self._ph += 1
-        return self._ph - 1
+        return Placeholder(self._ph - 1)
 
     ##
     ## Add chained rules to placeholder. Some rules will be given

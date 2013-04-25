@@ -11,14 +11,18 @@ from .utils import strip_missing
 ## installations on a single machine. We need an object
 ## to represent each installation.
 ##
-class Installation(object):
+class Installation(Node):
 
-    def __init__(self, version, location, **kwargs):
+    def __init__(self, version=None, location=None, **kwargs):
+        super(Installation, self).__init__()
         self.version = version
         self.location = location
         self.binaries = kwargs.get('binaries', [])
         self.headers = kwargs.get('headers', [])
         self.libraries = kwargs.get('libraries', [])
+
+    def __repr__(self):
+        return 'Installation'
 
     def productions(self, nodes, options={}):
         return self.version.productions(nodes, options)
@@ -209,9 +213,21 @@ class Version(object):
 class Package(Node):
 
     def __init__(self):
+        super(Package, self).__init__()
         self.name = self.__class__.__name__
         self.installs = []
         self.versions = [v(self) for v in self.versions]
+
+    ##
+    ## Packages use their class type for comparison. This is
+    ## to make sure only one exists in the graph at any time.
+    ## The Package object is used to represent ALL packages of
+    ## the given type.
+    ##
+    def __eq__(self, op):
+        return self.__class__ == op.__class__
+    def __hash__(self):
+        return hash(self.__class__)
 
     ##
     ## Default package usage. Try to determine the correct
@@ -219,10 +235,10 @@ class Package(Node):
     ## just return an instantiation of the class 'Builder'
     ## attached to this object.
     ##
-    def __call__(self, source, target=None):
-        sources = to_list(source)
-        targets = to_list(target)
-        return self.versions[-1]._builder(sources, targets)
+    # def __call__(self, source, target=None):
+    #     sources = to_list(source)
+    #     targets = to_list(target)
+    #     return self.versions[-1]._builder(sources, targets)
 
     def __repr__(self):
         text = self.name
@@ -250,8 +266,8 @@ class Package(Node):
     def productions(self, nodes, options={}):
         assert 0, 'Should never get to this one.' 
 
-    def build(self):
-        logging.debug('Building package ' + self.name)
+    def search(self):
+        logging.debug('Performing package search for %s'%self.name)
         for ver in self.versions:
             ver.search()
 
@@ -269,14 +285,15 @@ class Search(Node):
     ## package to search common locations for installations.
     ##
     def update(self, graph):
+        logging.debug('Searching for %s'%self.package)
 
         # Let the package perform the search operations. This
         # must be like this because the only the package and
         # versions know how to search.
         self.package.search()
 
-        # Set the products in the graph.
-        graph.set_products(self, self.package.installations)
+        # # Set the products in the graph.
+        # graph.set_products(self, self.package.installations)
 
     def __repr__(self):
         text = 'Search(' + repr(self.package) + ')'

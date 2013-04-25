@@ -1,4 +1,6 @@
-from Node import Node
+from .Node import Node
+from .Package import Search, Installation
+from .Resolver import Resolver
 from .utils import load_class, getarg
 
 ##
@@ -6,18 +8,25 @@ from .utils import load_class, getarg
 ##
 def use(graph, *args, **kwargs):
 
+    # Need to store a mapping from the package class to the
+    # instantiated package.
+    if not hasattr(graph, '_pkg_map'):
+        setattr(graph, '_pkg_map', {})
+
     # Load the package class.
     pkg_name, args = getarg('package', args, kwargs)
     opts, args = getarg('options', args, kwargs, False)
     pkg_class = load_class(pkg_name)
 
-    # Try and locate the package class in the graph.
-    pkg = graph.find_node(pkg_class)
-    if not pkg:
+    # Do we already have this package loaded?
+    if pkg_class not in graph._pkg_map:
+
+        # Instantiate the package and insert into mapping.
         pkg = pkg_class()
+        graph._pkg_map[pkg_class] = pkg
 
         # Use the Search builder by default.
-        bldr = Package.Search()
+        bldr = Search(pkg)
 
         # Need a placeholder for the potentially many installations
         # found by the package.
@@ -35,10 +44,18 @@ def use(graph, *args, **kwargs):
         graph.add_edge(ph, rslvr, source=True)
         graph.add_edge(rslvr, inst, product=True)
 
-    # If we already have the package, find the resolver.
+    # If we already have the package, find the installation.
     else:
-        rslvr = graph.find_first_child(pkg, Resolver)
-        inst = graph.find_first_child(rslver, Installation)
+        pkg = graph._pkg_map[pkg_class]
+
+        # Get the second child of the package and make sure it's
+        # a resolver.
+        rslvr = graph.first_child(graph.first_child(graph.first_child(pkg)))
+        assert isinstance(rslvr, Resolver)
+
+        # Make a new installation to be attached to the resolver.
+        inst = Installation()
+        graph.add_edge(rslvr, inst)
 
     # Create the new Use and attach it as a child of the
     # resolved installation.
@@ -54,12 +71,13 @@ def use(graph, *args, **kwargs):
 class Use(Node):
 
     def __init__(self, package, options):
+        super(Use, self).__init__()
         self.package = package
         self.options = options
         self.selected = None
 
-    def __call__(self, source):
-        return self.package(source)
+    # def __call__(self, source):
+    #     return self.package(source)
 
     def __repr__(self):
         text = 'Use(' + repr(self.package)

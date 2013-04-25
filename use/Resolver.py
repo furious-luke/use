@@ -1,3 +1,5 @@
+from .Node import Node
+
 ##
 ## Resolve which packages will be used. When searching
 ## for packages there will likely be several options for
@@ -8,17 +10,20 @@
 ## each use has requested of the same package and also
 ## what dependencies each package is built against.
 ##
-class Resolver(object):
+class Resolver(Node):
 
     def __init__(self):
-        pass
+        super(Resolver, self).__init__()
+
+    def __repr__(self):
+        return 'Resolver'
 
     ##
     ## Resolve the graph. The graph must have had its
     ## packages built.
     ## @param[in] graph The graph to resolve.
     ##
-    def __call__(self, graph):
+    def update(self, graph):
 
         # Need to build a dictionary from packages to uses.
         pkg_uses = self._make_pkg_uses(graph)
