@@ -24,8 +24,8 @@ class Installation(Node):
     def __repr__(self):
         return 'Installation'
 
-    def productions(self, nodes, options={}):
-        return self.version.productions(nodes, options)
+    def expand(self, nodes, options={}):
+        return self.version.expand(nodes, options)
 
 ##
 ## Represents a package version. Packages may require
@@ -162,8 +162,8 @@ class Version(object):
     ## Calculate the products of nodes. By default this
     ## will call the package's productions.
     ##
-    def productions(self, nodes, options={}):
-        return self.package.productions(nodes, options)
+    def expand(self, nodes, options={}):
+        return self.package.expand(nodes, options)
 
     ##
     ##
@@ -263,7 +263,7 @@ class Package(Node):
     ## own production rules. However they can also just refer to
     ## this default operation.
     ##
-    def productions(self, nodes, options={}):
+    def expand(self, nodes, options={}):
         assert 0, 'Should never get to this one.' 
 
     def search(self):
@@ -291,9 +291,22 @@ class Search(Node):
         # must be like this because the only the package and
         # versions know how to search.
         self.package.search()
+        self.expand(graph)
 
-        # # Set the products in the graph.
-        # graph.set_products(self, self.package.installations)
+    def expand(self, graph):
+
+        # Get the dependants.
+        dependants = graph.successors(self, source=True)
+        logging.debug('Search: Expanding dependants %s'%dependants)
+        for dep in dependants:
+            graph.remove_edge(self, dep)
+
+        # Insert new edges from the found installations to the
+        # the old edge destinations.
+        for inst in self.package.iter_installations():
+            graph.add_edge(self, inst, product=True)
+            for dep in dependants:
+                graph.add_edge(inst, dep, source=True)
 
     def __repr__(self):
         text = 'Search(' + repr(self.package) + ')'

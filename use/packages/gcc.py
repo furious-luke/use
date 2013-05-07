@@ -43,10 +43,15 @@ class gcc(use.Package):
     ## gcc's productions. The standard gcc production will
     ## produce a single object file for each source file.
     ##
-    def productions(self, nodes, options={}):
+    def expand(self, nodes, options={}):
+        logging.debug('gcc: Expanding %s'%nodes)
+
+        # Expand the list of productions.
         prods = []
         for node in nodes:
             obj_filename = os.path.splitext(node.path)[0] + '.o'
-            prods.append(((node,), obj_filename))
+            target = self.default_target_node(obj_filename)
+            prods.append(((node,), self.default_builder(node, target), (target,)))
+
         logging.debug('gcc: Productions = ' + str(prods))
         return prods

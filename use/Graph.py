@@ -48,8 +48,14 @@ class Graph(object):
     def has_node(self, *args, **kwargs):
         return self._graph.has_node(*args, **kwargs)
 
+    def remove_node(self, *args, **kwargs):
+        return self._graph.remove_node(*args, **kwargs)
+
     def add_edge(self, *args, **kwargs):
         return self._graph.add_edge(*args, **kwargs)
+
+    def remove_edge(self, *args, **kwargs):
+        return self._graph.remove_edge(*args, **kwargs)
 
     def first_child(self, node):
         children = self._graph.successors(node)
@@ -58,7 +64,26 @@ class Graph(object):
         return None
 
     def predecessors(self, *args, **kwargs):
-        return self._graph.predecessors(*args, **kwargs)
+        if kwargs:
+            pred = []
+            for edge in self._graph.in_edges_iter(*args):
+                for k, v in kwargs.iteritems():
+                    if self._graph.edge[edge[0]][edge[1]].get(k, None) == v:
+                        pred.append(edge[0])
+            return pred
+        else:
+            return self._graph.predecessors(*args, **kwargs)
+
+    def successors(self, *args, **kwargs):
+        if kwargs:
+            succ = []
+            for edge in self._graph.out_edges_iter(*args):
+                for k, v in kwargs.iteritems():
+                    if self._graph.edge[edge[0]][edge[1]].get(k, None) == v:
+                        succ.append(edge[1])
+            return succ
+        else:
+            return self._graph.successors(*args, **kwargs)
 
     def update(self):
 

@@ -1,6 +1,9 @@
+import re, os
 from .Graph import graph
 from .Node import Node
+from .File import File
 from .conv import to_list
+import logging
 
 __all__ = ['rule', 'Rule', 'RuleList']
 
@@ -71,3 +74,72 @@ class Rule(Node):
 
     def productions(self, nodes):
         return self.use.productions(nodes, self.options)
+
+    ##
+    ##
+    ##
+    def update(self, graph):
+
+        # If our source is a string then locate any matching files.
+        logging.debug('Rule: Looking at source %s'%self.source)
+        for src in self.source:
+            if isinstance(src, str):
+                files = self.match_sources(src)
+                for f in files:
+                    graph.add_edge(File(f), self, source=True)
+
+        # Run the expansion.
+        self.expand(graph)
+
+    def match_sources(self, expr):
+        logging.debug('Rule: Matching files.')
+
+        # Compile the regular expression.
+        prog = re.compile(expr)
+
+        # Scan everything.
+        srcs = []
+        for dir_path, dir_names, file_names in os.walk('.'):
+            for fn in file_names:
+                path = os.path.join(dir_path, fn)
+                match = prog.match(path)
+                if match:
+                    srcs.append(path)
+
+        logging.debug('Rule: Found %s'%srcs)
+        return srcs
+
+    ##
+    ## Expand products. Rules begin with no products defined.
+    ## There will be dependants that are marked as sources, which
+    ## will be the recipients of the products.
+    ##
+    def expand(self, graph):
+
+        # Get hold of dependants and sources.
+        dependants = graph.successors(self, source=True)
+        sources = graph.predecessors(self, source=True)
+
+        # The Use knows how to convert the sources into productions.
+        # A production is a transformation from source to product,
+        # in the form of a tuple with three elements, a tuple of sources,
+        # a builder, and a tuple of products.
+        productions = self.use.expand(sources, self.options)
+
+        # In preparation for inserting the productions, detach the
+        # rule from sources and dependants.
+        graph.remove_node(self)
+
+        # Insert the productions.
+        for prod in productions:
+
+            # Add sources.
+            for src in prod[0]:
+                graph.add_edge(src, prod[1], source=True)
+
+            # Add products.
+            for pr in prod[2]:
+                graph.add_edge(prod[1], pr, product=True)
+
+            # Add the rule as a dependency of the builder.
+            graph.add_edge(self, prod[1])

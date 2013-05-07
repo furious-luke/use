@@ -1,4 +1,5 @@
 from .Node import Node
+import logging
 
 ##
 ## Resolve which packages will be used. When searching
@@ -24,24 +25,18 @@ class Resolver(Node):
     ## @param[in] graph The graph to resolve.
     ##
     def update(self, graph):
+        logging.debug('Resolving package installations.')
 
-        # Need to build a dictionary from packages to uses.
-        pkg_uses = self._make_pkg_uses(graph)
+        # Get the source installations.
+        sources = graph.predecessors(self, source=True)
+        dependants = graph.successors(self, source=True)
+        logging.debug('Resolver: installations: %s'%sources)
+        logging.debug('Resolver: uses: %s'%dependants)
 
-        # TODO: Make less shitty.
-        # Pick the first available version.
-        for pkg, uses in pkg_uses.items():
-            for use in uses:
-                use.selected = list(pkg.iter_installations())[0]
+        # If no sources return.
+        if not sources:
+            return
 
-    ##
-    ##
-    ##
-    def _make_pkg_uses(self, graph):
-        pkg_uses = {}
-        for node, rule in graph.iter_nodes():
-            if rule is None:
-                continue
-            pkg_uses.setdefault(rule.use.package, set()).add(rule.use)
-        return pkg_uses
-
+        # Totally shit, but pick the first and apply to all dependants.
+        for dep in dependants:
+            dep.selected = sources[0]

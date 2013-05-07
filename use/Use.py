@@ -1,5 +1,5 @@
 from .Node import Node
-from .Package import Search, Installation
+from .Package import Search
 from .Resolver import Resolver
 from .utils import load_class, getarg
 
@@ -28,21 +28,22 @@ def use(graph, *args, **kwargs):
         # Use the Search builder by default.
         bldr = Search(pkg)
 
-        # Need a placeholder for the potentially many installations
-        # found by the package.
-        ph = graph.placeholder()
+        # # Need a placeholder for the potentially many installations
+        # # found by the package.
+        # ph = graph.placeholder()
 
         # Use a particular resolver by default.
         rslvr = Resolver()
 
-        # Create an installation for the resolver product.
-        inst = Installation()
+        # # Create an installation for the resolver product.
+        # inst = Installation()
 
         # Insert into the graph.
         graph.add_edge(pkg, bldr, source=True)
-        graph.add_edge(bldr, ph, product=True)
-        graph.add_edge(ph, rslvr, source=True)
-        graph.add_edge(rslvr, inst, product=True)
+        graph.add_edge(bldr, rslvr, source=True)
+        # graph.add_edge(bldr, ph, product=True)
+        # graph.add_edge(ph, rslvr, source=True)
+        # graph.add_edge(rslvr, inst, product=True)
 
     # If we already have the package, find the installation.
     else:
@@ -50,17 +51,18 @@ def use(graph, *args, **kwargs):
 
         # Get the second child of the package and make sure it's
         # a resolver.
-        rslvr = graph.first_child(graph.first_child(graph.first_child(pkg)))
+        rslvr = graph.first_child(graph.first_child(pkg))
+        # rslvr = graph.first_child(graph.first_child(graph.first_child(pkg)))
         assert isinstance(rslvr, Resolver)
 
-        # Make a new installation to be attached to the resolver.
-        inst = Installation()
-        graph.add_edge(rslvr, inst)
+        # # Make a new installation to be attached to the resolver.
+        # inst = Installation()
+        # graph.add_edge(rslvr, inst)
 
     # Create the new Use and attach it as a child of the
     # resolved installation.
     this_use = Use(pkg, opts)
-    graph.add_edge(inst, this_use)
+    graph.add_edge(rslvr, this_use, source=True)
 
     # Return the created Use.
     return this_use
@@ -92,5 +94,5 @@ class Use(Node):
     def package_iter(self):
         yield self.package
 
-    def productions(self, nodes, options={}):
-        return self.selected.productions(nodes, self.options)
+    def expand(self, nodes, options={}):
+        return self.selected.expand(nodes, self.options)
