@@ -85,6 +85,11 @@ class Graph(object):
         else:
             return self._graph.successors(*args, **kwargs)
 
+    ##
+    ## Updating is a bit of a nasty. Because nodes in the graph may
+    ## modify descendant connections we can't depend on a recursive
+    ## method calling approach.
+    ##
     def update(self):
 
         # Begin with a list of targets to process. By default
@@ -94,10 +99,34 @@ class Graph(object):
             if not self._graph.successors(node):
                 targets.append(node)
 
+        # Walk target dependencies, building a set of nodes
+        # to be processed.
+        to_build, to_build_set = _to_build(targets)
+
+        # Begin processing each node.
+        while len(to_build):
+            node = to_build.pop(0)
+
+            # Execute the node. This will return FROM HERE
+
         # Execute each target node to handle invalidation and
         # updating.
         for tgt in targets:
             tgt(self)
+
+    def _to_build(self, targets):
+        to_build = []
+        to_build_set = set()
+        for t in targets:
+            _to_build_node(t, to_build, to_build_set)
+        return to_build, to_build_set
+
+    def _to_build_node(self, node, to_build, to_build_set):
+        if node not in to_build_set:
+            to_build.prepend(node)
+            to_build_set.insert(node)
+            for s in self.predecessors(source=True):
+                _to_build_node(s, to_build, to_build_set)
 
     ##
     ## Prepare regular expressions for searching.
@@ -268,7 +297,7 @@ class Graph(object):
     def draw_graph(self, path=None):
         path = 'plot.png'
         import matplotlib.pyplot as plt
-        nx.draw(self._graph)
+        nx.draw_spring(self._graph)
         if path:
             plt.savefig(path)
         else:
