@@ -38,7 +38,12 @@ class Version(object):
         self.package = package
         self.installations = []
         self.patterns = []
+
+        # Location handling.
+        self.locations = []
+        self._potential_locations = []
         self._checked_locations = set()
+        self._mine_done = False
         
         # If there are any missing fields, add an empty
         # list to prevent errors.
@@ -50,29 +55,71 @@ class Version(object):
         return self._ver == op._ver
 
     ##
-    ## Search for installations.
+    ## Search for locations.
     ##
     def search(self):
         logging.debug('Searching for version ' + self.version)
-        for loc in self.iter_locations():
-            self.simplify_location(loc)
-            if loc not in self._checked_locations:
-                self.check_location(loc)
-                self._checked_locations.add(loc)
 
+        # If we havn't already done mine, add them in now.
+        if not self._done_mine:
+            logging.debug('Adding my own locations.')
+            self._done_mine = True
+            mine = list(self.iter_locations())
+            self._potential_locations.extend(mine)
+            logging.debug('Added: ' + str(mine))
+
+        # If there are no new potential locations, return
+        # true to indicate we are done.
+        if not self._potential_locations:
+            return True
+
+        # Search all potential locations.
+        while self._potential_locations:
+            loc = self._potential_locations.pop(0)
+            logging.debug('Starting with location: ' + str(loc))
+            self.simplify_location(loc)
+            logging.debug('Simplified to: ' + str(loc) )
+            if loc not in self._checked_locations:
+                self._checked_locations.add(loc)
+                if self.footprint(loc):
+                    logging.debug('Passed footprint.')
+                    self.harvest(loc)
+                    self.locations.append(loc)
+                else:
+                    logging.debug('Failed footprint.')
+            else:
+                logging.debug('Already checked.')
+
+        # Return false to indicate we had to do some
+        # processing. This indicates we need to run search
+        # on all the packages again.
+        return False
+
+    ##
+    ## Iterate over locations. Use this to customise how we search
+    ## for installations. By default it will iterate over usual
+    ## system locations.
+    ##
     def iter_locations(self):
         for loc in platform.iter_locations(self.patterns):
             yield loc
 
-    def simplify_location(self, location):
+    ##
+    ## Reduce location to canonical form. Use this to determine
+    ## how best to simplify locations.
+    ##
+    def simplify_location(self, loc):
         if not self.binaries:
-            location.binary_dirs = []
+            loc.binary_dirs = []
         if not self.headers:
-            location.header_dirs = []
+            loc.header_dirs = []
         if not self.libraries:
-            location.library_dirs = []
+            loc.library_dirs = []
 
-    def check_location(self, location):
+    ##
+    ## Check if location matches a footprint for this version.
+    ##
+    def footprint(self, loc):
         logging.debug('Checking location ' + repr(location))
 
         # First check if all the required files exist.
@@ -85,26 +132,26 @@ class Version(object):
         if res:
             res, libs = self.find_libraries(self.libraries, location.library_dirs)
 
-        # Now check that the version matches.
-        if res:
-            res = self.check_version(location)
-            if res:
-                logging.debug('Version matches.')
-            else:
-                logging.debug('Version does not match.')
+        # # Now check that the version matches.
+        # if res:
+        #     res = self.check_version(location)
+        #     if res:
+        #         logging.debug('Version matches.')
+        #     else:
+        #         logging.debug('Version does not match.')
 
-        # Create an installation and perform any final checks.
-        if res:
-            inst = Installation(self, location, binaries=bins, headers=hdrs, libraries=libs)
-            if self.check_installation(inst):
-                self.installations.append(inst)
-                logging.debug('Found valid installation at ' + repr(location))
-            else:
-                logging.debug('Installation check failed.')
+        # # Create an installation and perform any final checks.
+        # if res:
+        #     inst = Installation(self, location, binaries=bins, headers=hdrs, libraries=libs)
+        #     if self.check_installation(inst):
+        #         self.installations.append(inst)
+        #         logging.debug('Found valid installation at ' + repr(location))
+        #     else:
+        #         logging.debug('Installation check failed.')
 
         return res
 
-    def check_version(self, location):
+    def check_version(self, loc):
         return True
 
     def check_installation(self, inst):

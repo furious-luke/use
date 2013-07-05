@@ -18,6 +18,11 @@ class TestPackage(unittest.TestCase):
         self.assertFalse(res[0])
         self.assertEquals(res[1], 'hdr1.h')
 
+    def test_footprint_headers(self):
+        loc = Location(self.path, hdr_dirs=['a/c', 'b'])
+        self.ver.headers = ['hdr1.h', 'hdr2.h', 'hdr3.h']
+        self.assertTrue(self.ver.footprint(loc))
+
     def setUp(self):
         self.pkg = Package()
         self.ver = Version(self.pkg, None)
