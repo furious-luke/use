@@ -1,92 +1,31 @@
 from .Node import Node
-from .Package import Search
 from .Resolver import Resolver
 from .utils import load_class, getarg
-
-##
-## Locate one or more packages to use.
-##
-def use(graph, *args, **kwargs):
-
-    # Need to store a mapping from the package class to the
-    # instantiated package.
-    if not hasattr(graph, '_pkg_map'):
-        setattr(graph, '_pkg_map', {})
-
-    # Load the package class.
-    pkg_name, args = getarg('package', args, kwargs)
-    opts, args = getarg('options', args, kwargs, False)
-    pkg_class = load_class(pkg_name)
-
-    # Do we already have this package loaded?
-    if pkg_class not in graph._pkg_map:
-
-        # Instantiate the package and insert into mapping.
-        pkg = pkg_class()
-        graph._pkg_map[pkg_class] = pkg
-
-        # Use the Search builder by default.
-        bldr = Search(pkg)
-
-        # # Need a placeholder for the potentially many installations
-        # # found by the package.
-        # ph = graph.placeholder()
-
-        # Use a particular resolver by default.
-        rslvr = Resolver()
-
-        # # Create an installation for the resolver product.
-        # inst = Installation()
-
-        # Insert into the graph.
-        graph.add_edge(pkg, bldr, source=True)
-        graph.add_edge(bldr, rslvr, source=True)
-        # graph.add_edge(bldr, ph, product=True)
-        # graph.add_edge(ph, rslvr, source=True)
-        # graph.add_edge(rslvr, inst, product=True)
-
-    # If we already have the package, find the installation.
-    else:
-        pkg = graph._pkg_map[pkg_class]
-
-        # Get the second child of the package and make sure it's
-        # a resolver.
-        rslvr = graph.first_child(graph.first_child(pkg))
-        # rslvr = graph.first_child(graph.first_child(graph.first_child(pkg)))
-        assert isinstance(rslvr, Resolver)
-
-        # # Make a new installation to be attached to the resolver.
-        # inst = Installation()
-        # graph.add_edge(rslvr, inst)
-
-    # Create the new Use and attach it as a child of the
-    # resolved installation.
-    this_use = Use(pkg, opts)
-    graph.add_edge(rslvr, this_use, source=True)
-
-    # Return the created Use.
-    return this_use
 
 ##
 ## Represents a package installation with options.
 ##
 class Use(Node):
 
-    def __init__(self, package, options):
+    def __init__(self, package, options={}):
         super(Use, self).__init__()
         self.package = package
-        self.options = options
+        self.options = options if options is not None else {}
         self.selected = None
 
-    # def __call__(self, source):
-    #     return self.package(source)
-
     def __repr__(self):
-        text = 'Use(' + repr(self.package)
+        text = 'use<' + repr(self.package)
         if self.options:
             text += ', ' + repr(self.options)
-        text += ')'
+        text += '>'
         return text
+
+    def __add__(self, op):
+        return UseGroup(self, op, 'and')
+
+    @property
+    def found(self):
+        return self.selected is not None
 
     def has_packages(self):
         return True
@@ -94,5 +33,57 @@ class Use(Node):
     def package_iter(self):
         yield self.package
 
+    def make_options_dict(self, options):
+        return self.selected.options().make_options_dict(options)
+
+    def apply(self, prods, options={}):
+        self.selected.apply(prods, self.options, options)
+
     def expand(self, nodes, options={}):
-        return self.selected.expand(nodes, self.options)
+        return self.selected.expand(nodes, self.options, options)
+
+##
+##
+##
+class UseGroup(object):
+
+    def __init__(self, left, right, op):
+        self.left = left
+        self.right = right
+        self.op = op
+
+    @property
+    def found(self):
+        if self.op == 'and':
+            return self.left.found and self.right.found
+        elif self.op == 'or':
+            return self.left.found or self.right.found
+        return False
+
+    def apply(self, prods):
+        if self.op == 'and':
+            self.left.apply(prods)
+            self.right.apply(prods)
+        elif self.op == 'or':
+            if self.left.found:
+                self.left.apply(prods)
+            else:
+                self.right.apply(prods)
+
+    def expand(self, nodes, options):
+        if self.op == 'and':
+            prods = self.left.expand(nodes, options)
+            if prods is None:
+                prods = self.right.expand(nodes, options)
+                if prods is not None:
+                    self.left.apply(prods)
+            else:
+                self.right.apply(prods)
+
+        elif self.op == 'or':
+            if self.left.found:
+                prods = self.left.expand(nodes, options)
+            else:
+                prods = self.right.expand(nodes, options)
+
+        return prods

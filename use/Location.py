@@ -8,14 +8,14 @@ class Location(object):
         self.header_dirs = list(self._iter_dirs(hdr_dirs))
         self.library_dirs = list(self._iter_dirs(lib_dirs))
 
-    def __hash__(self):
-        return hash(repr(self))
-
     def __eq__(self, op):
-        return (self.base == op.base and
-                self.binary_dirs == op.binary_dirs and
-                self.header_dirs == op.header_dirs and
-                self.library_dirs == op.library_dirs)
+        if self.base != op.base:
+            return False
+        for dirs in ['binary_dirs', 'header_dirs', 'library_dirs']:
+            for d in getattr(self, dirs):
+                if d not in getattr(op, dirs):
+                    return False
+        return True
 
     def __repr__(self):
         text = []

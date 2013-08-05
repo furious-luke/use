@@ -5,14 +5,7 @@
 ##
 
 import os, sys, logging
-# from use.Options import options
-# from use.Use import use
-# from use.Default import default
-# from use.Rule import rule
-from use.Graph import Graph
-from use.Use import use
-from use.Rule import rule
-# from use.Resolver import Resolver
+from use.Context import Context
 
 # Setup logging.
 logging.basicConfig(level=logging.DEBUG)
@@ -24,17 +17,16 @@ if not os.path.exists(script):
     print('No "build.py" to execute.')
     sys.exit(1)
 
-# I need to create a global graph object to
-# be used.
-graph = Graph()
+# Create the global context.
+ctx = Context()
 
 # Insert all the global methods and such I want
 # available to the user.
 globals_dict = {
 
-    # Use shortcuts to insert the graph.
-    'use': lambda *a,**k: use(graph,*a,**k),
-    'rule': lambda *a,**k: rule(graph,*a,**k),
+    # Use shortcuts to insert 
+    'use': ctx.new_use,
+    'rule': ctx.new_rule,
 }
 
 # Try to execute the build script.
@@ -42,27 +34,26 @@ locals_dict = {}
 # exec(open(script).read(), globals(), locals_dict)
 execfile(script, globals_dict, locals_dict)
 
-# Update the graph.
-graph.update()
+# Handle arguments.
+ctx.parse_arguments()
 
-# # Prepare the rules.
-# graph.compile()
-# graph.search()
-# graph.setup_packages()
-# graph.build_packages()
+# Perform configuration.
+ctx.configure()
 
-# # With the packages having been built we can now
-# # try and resolve which versions to use.
-# resolver = Resolver()
-# resolver(graph)
+# Scan for source files.
+ctx.scan()
 
-# # Now we can go back and expand all the productions
-# # to have both the correct names and the correct
-# # multiplicity.
-# graph.post_package_expand()
+# Expand into products.
+ctx.expand()
 
-# # # Get the task master going.
-# # task_master = TaskMaster(graph)
-# # task_master()
+# If there is a 'post_configure' callable in the locals
+# dictionary call it now.
+post_cfg = locals_dict.get('post_configure', None)
+if post_cfg and callable(post_cfg):
+    post_cfg(ctx)
 
-# graph.draw_graph()
+# Find targets to build.
+ctx.find_targets()
+
+# Build targets.
+ctx.build()

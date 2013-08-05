@@ -1,39 +1,10 @@
 import re, os
-from .Graph import graph
 from .Node import Node
 from .File import File
 from .conv import to_list
 import logging
 
-__all__ = ['rule', 'Rule', 'RuleList']
-
-def rule(graph, source, use, **kwargs):
-
-    # We must be able to locate the requested use already
-    # in the graph.
-    assert graph.has_node(use)
-
-    # Create a new rule to encapsulate this.
-    new_rule = Rule(source, use, kwargs)
-
-    # Source can either be a regular expression, a list
-    # of regular expressions or a RuleList. If we have a rule
-    # list we add edges between the rules.
-    if isinstance(source, RuleList):
-        for src in source:
-            graph.add_edge(src, new_rule)
-
-    # Otherwise make sure we have a list and add the rule
-    # as a node.
-    else:
-        new_rule.source = to_list(source)
-#        graph.add_node(new_rule)
-
-    # Add an edge from the use to this rule.
-    graph.add_edge(use, new_rule)
-
-    # Return the new rule object.
-    return new_rule
+__all__ = ['Rule', 'RuleList']
 
 class RuleList(object):
 
@@ -58,13 +29,21 @@ class RuleList(object):
             else:
                 rules.append(r)
 
-class Rule(Node):
+class Rule(object):
 
     def __init__(self, source, use, options=None):
         super(Rule, self).__init__()
         self.source = source
+        self._src_nodes = []
+        self.product_nodes = []
+        self.productions = []
         self.use = use
         self.options = options
+
+    @property
+    def source_nodes(self):
+        nodes = sum([r.product_nodes for r in self.source if isinstance(r, Rule)], [])
+        return self._src_nodes + nodes
 
     def __repr__(self):
         return str(self.source) + ' -> ' + str(self.use)
@@ -72,24 +51,46 @@ class Rule(Node):
     def __add__(self, op):
         return RuleList(self, op)
 
-    def productions(self, nodes):
-        return self.use.productions(nodes, self.options)
-
     ##
+    ## Scan for files.
     ##
-    ##
-    def update(self, graph):
-
-        # If our source is a string then locate any matching files.
-        logging.debug('Rule: Looking at source %s'%self.source)
+    def scan(self, ctx):
         for src in self.source:
-            if isinstance(src, str):
-                files = self.match_sources(src)
-                for f in files:
-                    graph.add_edge(File(f), self, source=True)
+            logging.debug('Rule: Looking at source %s'%repr(self.source))
 
-        # Run the expansion.
-        self.expand(graph)
+            # If our source is a string then locate any matching files.
+            if isinstance(src, basestring):
+                files = self.match_sources(src)
+                self._src_nodes = [File(f) for f in files]
+
+    ##
+    ## Expand products. Rules begin with no products defined.
+    ## There will be dependants that are marked as sources, which
+    ## will be the recipients of the products.
+    ##
+    def expand(self, ctx):
+        logging.debug('Rule: Expanding rule: %s'%repr(self))
+
+        # The Use knows how to convert the sources into productions.
+        # A production is a transformation from source to product,
+        # in the form of a tuple with three elements, a tuple of sources,
+        # a builder, and a tuple of products.
+        self.productions = self.use.expand(self.source_nodes, self.options)
+        logging.debug('Rule: Have productions: %s'%repr(self.productions))
+
+        # Cache product nodes.
+        self.product_nodes = sum([list(d) for s, b, d in self.productions], [])
+
+        # Scan product nodes and update the source nodes with
+        # product nodes and update product nodes with rules.
+        for srcs, bldr, dsts in self.productions:
+            for src in srcs:
+                src.products = dsts
+            for dst in dsts:
+                dst.rule = self
+                dst.builder = bldr
+
+        logging.debug('Rule: Done expanding rule.')
 
     def match_sources(self, expr):
         logging.debug('Rule: Matching files.')
@@ -108,38 +109,3 @@ class Rule(Node):
 
         logging.debug('Rule: Found %s'%srcs)
         return srcs
-
-    ##
-    ## Expand products. Rules begin with no products defined.
-    ## There will be dependants that are marked as sources, which
-    ## will be the recipients of the products.
-    ##
-    def expand(self, graph):
-
-        # Get hold of dependants and sources.
-        dependants = graph.successors(self, source=True)
-        sources = graph.predecessors(self, source=True)
-
-        # The Use knows how to convert the sources into productions.
-        # A production is a transformation from source to product,
-        # in the form of a tuple with three elements, a tuple of sources,
-        # a builder, and a tuple of products.
-        productions = self.use.expand(sources, self.options)
-
-        # In preparation for inserting the productions, detach the
-        # rule from sources and dependants.
-        graph.remove_node(self)
-
-        # Insert the productions.
-        for prod in productions:
-
-            # Add sources.
-            for src in prod[0]:
-                graph.add_edge(src, prod[1], source=True)
-
-            # Add products.
-            for pr in prod[2]:
-                graph.add_edge(prod[1], pr, product=True)
-
-            # Add the rule as a dependency of the builder.
-            graph.add_edge(self, prod[1])

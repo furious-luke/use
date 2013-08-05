@@ -24,6 +24,6 @@ def strip_missing(dirs):
     return [d for d in dirs if os.path.exists(d)]
 
 def run_command(command):
-    proc = Popen(shlex.split(self.command), stdout=PIPE, stderr=PIPE)
+    proc = Popen(shlex.split(command), stdout=PIPE, stderr=PIPE)
     stdout, stderr = proc.communicate()
     return (proc.returncode, stdout, stderr)

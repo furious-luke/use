@@ -1,3 +1,4 @@
+import sys
 from .Node import Node
 import logging
 
@@ -17,26 +18,27 @@ class Resolver(Node):
         super(Resolver, self).__init__()
 
     def __repr__(self):
-        return 'Resolver'
+        return 'resolver'
 
     ##
-    ## Resolve the graph. The graph must have had its
-    ## packages built.
-    ## @param[in] graph The graph to resolve.
     ##
-    def update(self, graph):
+    ##
+    def __call__(self, ctx):
         logging.debug('Resolving package installations.')
 
-        # Get the source installations.
-        sources = graph.predecessors(self, source=True)
-        dependants = graph.successors(self, source=True)
-        logging.debug('Resolver: installations: %s'%sources)
-        logging.debug('Resolver: uses: %s'%dependants)
+        # Just use the first installation of every package.
+        for use in ctx.uses:
 
-        # If no sources return.
-        if not sources:
-            return
+            # Get the first installation.
+            use.selected = None
+            for ver in use.package.versions:
+                for inst in ver.installations:
+                    use.selected = inst
+                    break
+                if use.selected:
+                    break
 
-        # Totally shit, but pick the first and apply to all dependants.
-        for dep in dependants:
-            dep.selected = sources[0]
+            # Check for missing.
+            if not use.selected:
+                print 'Could not find valid installation.'
+                sys.exit(1)
