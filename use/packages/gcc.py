@@ -31,7 +31,7 @@ class gcc(use.Package):
         self._opts.binary = 'gcc'
         self._opts.add(Option('compile', '-c'))
         self._opts.add(Option('pic', '-fPIC'))
-        self._opts.add(Option('c++11', '-std=c++11'))
+        self._opts.add(Option('cxx11', '-std=c++11'))
         self._opts.add(Option('optimise', '-O', space=False))
         self._opts.add(Option('symbols', '-g'))
         if platform.os_name == 'darwin':
@@ -42,8 +42,8 @@ class gcc(use.Package):
         self._opts.add(Option('targets', '-o'))
         self._opts.add(Option('header_dirs', '-I'))
         self._opts.add(Option('library_dirs', '-L'))
-        self._opts.add(Option('libraries', '-l', space=False))
         self._opts.add(Option('sources'))
+        self._opts.add(Option('libraries', '-l', space=False))
 
     ##
     ## gcc's productions. The standard gcc production will

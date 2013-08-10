@@ -27,7 +27,7 @@ class mpicc(use.Feature):
 class Default(use.Version):
     version = 'default'
     headers = ['mpi.h']
-    libraries = ['mpich']
+    libraries = ['mpich', 'pmpich']
     features = [mpicc]
 
 ##
