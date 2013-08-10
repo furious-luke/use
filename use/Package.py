@@ -1,11 +1,11 @@
-import os, logging
+import sys, os, pickle, logging
 from .Node import Node
 from .Builder import Builder
 from .Platform import platform
 from .Location import Location
-from .Options import Options
+from .Options import OptionParser
 from .conv import to_list
-from .utils import strip_missing
+from .utils import strip_missing, make_dirs
 
 ##
 ## A package installation. Packages may have multiple
@@ -22,6 +22,15 @@ class Installation(Node):
         self._hdrs = kwargs.get('headers', [])
         self._libs = kwargs.get('libraries', [])
         self.features = []
+        self._ftr_map = {}
+
+    def __repr__(self):
+        text = [
+            'binaries: ' + str(self.binaries),
+            'headers: ' + str(self.headers),
+            'libraries: ' + str(self.libraries)
+            ]
+        return ', '.join(text)
 
     @property
     def binaries(self):
@@ -47,14 +56,6 @@ class Installation(Node):
     def library_dirs(self):
         return self.location.library_dirs
 
-    def __repr__(self):
-        text = [
-            'binaries: ' + str(self.binaries),
-            'headers: ' + str(self.headers),
-            'libraries: ' + str(self.libraries)
-            ]
-        return ', '.join(text)
-
     ##
     ## Locate any features described by the version.
     ##
@@ -62,7 +63,7 @@ class Installation(Node):
         for ftr in self.version.features:
             if ftr.check(self):
                 self.features.append(ftr)
-
+                self._ftr_map[ftr.name] = ftr
     ##
     ## Create productions for nodes.
     ##
@@ -81,6 +82,9 @@ class Installation(Node):
                 self.append_headers(opts)
             else:
                 self.append_libraries(opts)
+
+    def actions(self, *args, **kwargs):
+        return self.version.actions(self, *args, **kwargs)
 
     def append_headers(self, opts):
         hdr_dirs = self.header_dirs
@@ -109,6 +113,9 @@ class Installation(Node):
             for h in libs:
                 if h not in dst:
                     dst.append(h)
+
+    def feature(self, name):
+        return self._ftr_map.get(name)
 
     def options(self):
         return self.version.options()
@@ -145,8 +152,16 @@ class Version(object):
         if not hasattr(self, 'patterns'):
             self.patterns = '*' + self.package.name + '*'
 
-        # Features describe optional components of a package.
-        self.features = []
+        # Features describe optional components of a package. We store
+        # all possible features of the version here.
+        if hasattr(self, 'features'):
+            self.features = [f(self) for f in self.features]
+        else:
+            self.features = []
+
+        # Set the possible features on the package class.
+        for ftr in self.features:
+            self.package.add_feature(ftr)
 
     def __eq__(self, op):
         return self._ver == op._ver
@@ -162,6 +177,15 @@ class Version(object):
     ##
     def search(self):
         logging.debug('Package: Searching for version: ' + self.version)
+
+        # If there is nothing to search for then add a base installation
+        # and bail.
+        if not (self.headers or self.binaries or self.libraries):
+            if len(self._potential_installations) == 0:
+                logging.debug('Package: Nothing to search for, adding dummy installation.')
+                inst = Installation(self)
+                self._potential_installations.append(inst)
+            return True
 
         # If we havn't already done mine, add them in now.
         if not self._done_mine:
@@ -267,6 +291,9 @@ class Version(object):
     ## as is possible to make sure the package is correct.
     ##
     def check(self):
+        logging.debug('Version: Checking.')
+        logging.debug('Version: Package: ' + self.package.name + ', version: ' + self.version)
+
         for inst in self._potential_installations:
             
             # Now check that the version matches.
@@ -287,6 +314,8 @@ class Version(object):
 
                 else:
                     logging.debug('Installation check failed.')
+
+        logging.debug('Version: Done checking.')
 
     def check_version(self, loc):
         return True
@@ -364,7 +393,10 @@ class Version(object):
     ## will call the package's productions.
     ##
     def expand(self, nodes, inst, use_options={}, rule_options={}):
-        return self.package.expand(nodes, self, inst, use_options, rule_options)
+        return self.package.expand(nodes, inst, use_options, rule_options)
+
+    def actions(self, inst, *args, **kwargs):
+        return self.package.actions(inst, *args, **kwargs)
 
     ##
     ##
@@ -421,11 +453,12 @@ class Version(object):
 ##
 class Package(object):
 
-    def __init__(self):
-        super(Package, self).__init__()
+    def __init__(self, ctx):
+        self.ctx = ctx
         self.name = self.__class__.__name__
+        self.features = {} # must come before versions
         self.versions = [v(self) for v in self.versions]
-        self._opts = Options()
+        self._opts = OptionParser()
 
     ##
     ## Packages use their class type for comparison. This is
@@ -435,19 +468,12 @@ class Package(object):
     ##
     def __eq__(self, op):
         return self.__class__ == op.__class__
+
+    def __ne__(self, op):
+        return not self.__eq__(op)
+
     def __hash__(self):
         return hash(self.__class__)
-
-    ##
-    ## Default package usage. Try to determine the correct
-    ## action for the provided source/s. By default it will
-    ## just return an instantiation of the class 'Builder'
-    ## attached to this object.
-    ##
-    # def __call__(self, source, target=None):
-    #     sources = to_list(source)
-    #     targets = to_list(target)
-    #     return self.versions[-1]._builder(sources, targets)
 
     def __repr__(self):
         text = []
@@ -455,18 +481,92 @@ class Package(object):
             text.append(str(ver))
         return self.name + '<' + ', '.join(text) + '>'
 
+    def needs_configure(self):
+        return False
+
     def iter_installations(self):
         for ver in self.versions:
             for inst in ver.installations:
                 yield inst
+
+    def add_feature(self, ftr):
+        self.features.setdefault(ftr.name, {})[ftr.version] = ftr
+
+    def feature(self, name, use, cond=None, options=None):
+        from .Feature import FeatureUse
+        ftr_use = FeatureUse(name, use, cond, options)
+        self.ctx.uses.append(ftr_use)
+        return ftr_use
 
     ##
     ## Default productions operation. Each version may have its
     ## own production rules. However they can also just refer to
     ## this default operation.
     ##
-    def expand(self, nodes, vers, inst, use_options={}, rule_options={}):
-        assert 0, 'Should never get to this one.' 
+    def expand(self, nodes, inst, use_options={}, rule_options={}):
+
+        # Don't do anything if there are no sources.
+        if not nodes:
+            return None
+
+        # Merge any options together.
+        opts = self.merge_options(inst.version, use_options, rule_options)
+
+        # Call productions code.
+        return self.make_productions(nodes, inst, opts)
+
+    ##
+    ## Prepare productions list. By default a list of builders created
+    ## from the "default_builder" attribute will be made, one for each
+    ## of the nodes.
+    ##
+    def make_productions(self, nodes, inst, opts, single=False):
+        logging.debug('Package: Making productions.')
+
+        # If we don't have a default builder or default target
+        # node type then bail.
+        default_builder = self._get_attr(inst, 'default_builder')
+        default_target_node = self._get_attr(inst, 'default_target_node')
+        if not default_builder or not default_target_node:
+            return None
+
+        # We need either a destination suffix or a prefix in order
+        # to successfully transform a file.
+        suf = opts.get('suffix', self._get_attr(inst, 'default_target_suffix', ''))
+        pre = opts.get('prefix', '')
+        tgt = opts.get('target', '')
+        if not suf and not pre and (single and not tgt):
+            sys.stdout.write('Package: Can\'t process productions, they would overwrite the original files.\n')
+            sys.exit(1)
+            return None
+
+        dir_strip = opts.get('target_strip_dirs', 0)
+
+        # Either single or multi.
+        prods = []
+        if not single:
+            for node in nodes:
+                src_fn, src_suf = os.path.splitext(node.path)
+                src = src_fn + (suf if suf else src_suf)
+                new_src = '/'.join([d for i, d in enumerate([d for d in src.split('/') if d]) if i >= dir_strip])
+                if src[0] == '/' and dir_strip == 0:
+                    new_src = '/' + new_src
+                dst = os.path.join(pre, new_src)
+                target = default_target_node(dst)
+                prods.append(((node,),
+                              default_builder(self.ctx, node, target, inst.actions(node, target, opts), opts),
+                              (target,)))
+        else:
+            target = opts.get('target', None)
+            target = os.path.join(pre, target)
+            target = default_target_node(target)
+            prods.append((list(nodes),
+                          default_builder(self.ctx, nodes, target, inst.actions(nodes, target, opts), opts),
+                          (target,)))
+
+        logging.debug('Package: Done making productions.')
+        return prods
+                                               
 
     def search(self):
         logging.debug('Performing package search for %s'%self.name)
@@ -480,6 +580,13 @@ class Package(object):
         for ver in self.versions:
             ver.check()
 
+    def actions(self, inst, *args, **kwargs):
+        for ftr in inst.features:
+            acts = ftr(*args, **kwargs)
+            if acts is not None:
+                return acts
+        return None
+
     ##
     ## Return the options object for this package.
     ##
@@ -489,10 +596,7 @@ class Package(object):
     def merge_options(self, vers, *args):
 
         # Make new dictionary out of first argument.
-        if isinstance(args[0], dict):
-            opts = dict(args[0])
-        else:
-            opts = vers.options().make_options_dict(args[0])
+        opts = vers.options().make_options_dict(args[0])
 
         # Update with remaining options.
         for o in args[1:]:
@@ -536,55 +640,35 @@ class Package(object):
         inc_dir = getattr(args, name + '-inc-dir', None)
         lin_dir = getattr(args, name + '-lib-dir', None)
 
-# ##
-# ##
-# ##
-# class Search(Node):
+    def _get_attr(self, inst, attr, default=None):
+        val = getattr(inst, attr, None)
+        if val is None:
+            val = getattr(inst.version, attr, None)
+            if val is None:
+                val = getattr(self, attr, default)
+        return val
 
-#     def __init__(self, package):
-#         super(Search, self).__init__()
-#         self.package = package
+    # def save(self, base_dir):
+    #     base = os.path.join(base_dir, 'packages')
+    #     make_dirs(base)
+    #     with open(os.path.join(base, self.name + '.db'), 'w') as out:
 
-#     ##
-#     ## Locate the package. Use the set of versions given to a
-#     ## package to search common locations for installations.
-#     ##
-#     def update(self, graph):
-#         logging.debug('Searching for %s'%self.package)
+    #         # Dump feature names we used.
+    #         pickle.dump(self.features.keys(), out)
 
-#         # Let the package perform the search operations. This
-#         # must be like this because the only the package and
-#         # versions know how to search.
-#         self.package.search()
-#         self.expand(graph)
+    #         # Dump the options.
+    #         pickle.dump(self._opts, out)
 
-#     def expand(self, graph):
+    #         # Dump the versions and installations.
+    #         ver_list = []
+    #         for ver in self.versions:
+    #             cur = [ver.version]
+    #             inst_list = []
+    #             for inst in ver.installations:
+    #                 inst_list.append([inst.location, inst._bins, inst._hdrs, inst._libs, inst._ftr_map.keys()])
+    #             cur.append(inst_list)
+    #             ver_list.append(cur)
+    #         pickle.dump(ver_list, out)
 
-#         # Get the dependants.
-#         dependants = graph.successors(self, source=True)
-#         logging.debug('Search: Expanding dependants %s'%dependants)
-#         for dep in dependants:
-#             graph.remove_edge(self, dep)
-
-#         # Insert new edges from the found installations to the
-#         # the old edge destinations.
-#         for inst in self.package.iter_installations():
-#             graph.add_edge(self, inst, product=True)
-#             for dep in dependants:
-#                 graph.add_edge(inst, dep, source=True)
-
-#     def __repr__(self):
-#         text = 'Search(' + repr(self.package) + ')'
-#         return text
-
-# ##
-# ##
-# ##
-# class Install(Builder):
-#     pass
-
-# ##
-# ##
-# ##
-# class Download(Builder):
-#     pass
+    # def load(self, base_dir):
+    #     pass

@@ -1,5 +1,6 @@
 import os, re, logging
 import use
+from ..Platform import platform
 from ..Action import Command
 from ..Options import Option
 from ..File import File
@@ -9,25 +10,11 @@ from ..conv import to_list, to_iter
 ##
 ##
 ##
-class Builder(use.Builder):
-    pass
-
-##
-##
-##
 class Default(use.Version):
     version = 'default'
     binaries = ['gcc']
 
-    def actions(self, sources, targets=[], options={}):
-        # sources = to_iter(sources)
-        # targets = to_iter(targets)
-        # if isinstance(options, (str, unicode)):
-        #     cmd = self.options()(self.binaries[0], options, sources=sources, targets=targets)
-        # else:
-        #     opts = {'targets': targets, 'sources': sources}
-        #     opts.update(options)
-        #     cmd = self.options()(self.binaries[0], **opts)
+    def actions(self, inst, sources, targets=[], options={}):
         return [Command(self.package.options())]
 
 ##
@@ -35,13 +22,23 @@ class Default(use.Version):
 ##
 class gcc(use.Package):
     default_target_node = use.File
-    default_builder = Builder
+    default_builder = use.Builder
+    default_binary_filename = 'a.out'
     versions = [Default]
 
     def __init__(self, *args, **kwargs):
-        super(gcc, self).__init__()
+        super(gcc, self).__init__(*args, **kwargs)
         self._opts.binary = 'gcc'
         self._opts.add(Option('compile', '-c'))
+        self._opts.add(Option('pic', '-fPIC'))
+        self._opts.add(Option('c++11', '-std=c++11'))
+        self._opts.add(Option('optimise', '-O', space=False))
+        self._opts.add(Option('symbols', '-g'))
+        if platform.os_name == 'darwin':
+            self._opts.add(Option('shared_lib', text='-dynamiclib -install_name {target.abspath}'))
+        else:
+            self._opts.add(Option('shared_lib', text='-shared -Wl,-rpath={target.abspath}'))
+        self._opts.add(Option('define', '-D', space=False))
         self._opts.add(Option('targets', '-o'))
         self._opts.add(Option('header_dirs', '-I'))
         self._opts.add(Option('library_dirs', '-L'))
@@ -52,27 +49,22 @@ class gcc(use.Package):
     ## gcc's productions. The standard gcc production will
     ## produce a single object file for each source file.
     ##
-    def expand(self, nodes, vers, inst, use_options={}, rule_options={}):
-        logging.debug('gcc: Expanding %s'%nodes)
+    def make_productions(self, nodes, inst, opts):
+        logging.debug('gcc: Making productions.')
 
-        opts = self.merge_options(vers, use_options, rule_options)
-        prods = []
+        # Setup the mapping from source extensions to destination extensions.
+        if 'suffix' not in opts:
+            opts['suffix'] = '.os' if opts.get('pic', False) else '.o'
 
-        # If we have the compile flag then produce separate targets.
-        if 'compile' in opts:
-            for node in nodes:
-                obj_filename, obj_ext = os.path.splitext(node.path)
-                if obj_ext.lower() in ['.c', '.cc', '.cpp']:
-                    obj_filename += '.o'
-                    target = self.default_target_node(obj_filename)
-                prods.append(((node,), self.default_builder(node, target, vers.actions(node, target, opts), opts), (target,)))
+        # Single target or multitarget?
+        single = not opts.get('compile', False)
 
-        # Else produce a single target.
-        else:
-            target = opts.get('target', None)
-            if target is None:
-                target = File('a.out')
-            prods.append((list(nodes), self.default_builder(nodes, target, vers.actions(nodes, target, opts)), (target,)))
+        # If we're building a single binary then make sure we have a target.
+        if 'target' not in opts:
+            opts['target'] = self.default_binary_filename
 
-        logging.debug('gcc: Productions = ' + str(prods))
+        # Call parent.
+        prods = super(gcc, self).make_productions(nodes, inst, opts, single=single)
+
+        logging.debug('gcc: Done making productions.')
         return prods

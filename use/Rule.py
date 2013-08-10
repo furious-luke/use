@@ -12,6 +12,12 @@ class RuleList(object):
         self._rules = list(args)
         self._expand()
 
+    def __eq__(self, op):
+        for rule in self._rules:
+            if rule not in op._rules:
+                return False
+        return True
+
     def __add__(self, op):
         return RuleList(self, op)
 
@@ -40,9 +46,35 @@ class Rule(object):
         self.use = use
         self.options = options
 
+    def __eq__(self, op):
+        if type(self) != type(op):
+            return False
+
+        # Sources must be the same.
+        if self.source != op.source:
+            return False
+
+        # The uses must match.
+        if self.use != op.use:
+            return False
+
+        # Options must match.
+        if self.options != op.options:
+            return False
+
+        return True
+
+    def __ne__(self, op):
+        return not self.__eq__(op)
+
     @property
     def source_nodes(self):
-        nodes = sum([r.product_nodes for r in self.source if isinstance(r, Rule)], [])
+        if isinstance(self.source, Rule):
+            nodes = self.source.product_nodes
+        elif isinstance(self.source, RuleList):
+            nodes = sum([r.product_nodes for r in self.source if isinstance(r, Rule)], [])
+        else:
+            nodes = []
         return self._src_nodes + nodes
 
     def __repr__(self):
@@ -55,13 +87,12 @@ class Rule(object):
     ## Scan for files.
     ##
     def scan(self, ctx):
-        for src in self.source:
-            logging.debug('Rule: Looking at source %s'%repr(self.source))
+        logging.debug('Rule: Looking at source %s'%repr(self.source))
 
-            # If our source is a string then locate any matching files.
-            if isinstance(src, basestring):
-                files = self.match_sources(src)
-                self._src_nodes = [File(f) for f in files]
+        # If our source is a string then locate any matching files.
+        if isinstance(self.source, basestring):
+            files = self.match_sources(self.source)
+            self._src_nodes = [File(f) for f in files]
 
     ##
     ## Expand products. Rules begin with no products defined.
@@ -76,6 +107,8 @@ class Rule(object):
         # in the form of a tuple with three elements, a tuple of sources,
         # a builder, and a tuple of products.
         self.productions = self.use.expand(self.source_nodes, self.options)
+        if self.productions is None:
+            self.productions = []
         logging.debug('Rule: Have productions: %s'%repr(self.productions))
 
         # Cache product nodes.
@@ -103,6 +136,7 @@ class Rule(object):
         for dir_path, dir_names, file_names in os.walk('.'):
             for fn in file_names:
                 path = os.path.join(dir_path, fn)
+                path = path[2:]
                 match = prog.match(path)
                 if match:
                     srcs.append(path)

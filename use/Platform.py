@@ -33,14 +33,15 @@ class Platform(object):
                                 yield Location(base, bin_dirs, hdr_dirs, lib_dirs)
 
     def make_static_library(self, name):
-        return self._static_lib_str.format(name=name)
+        return os.path.join(os.path.dirname(name), self._static_lib_str.format(name=os.path.basename(name)))
 
     def make_shared_library(self, name):
-        return self._shared_lib_str.format(name=name)
+        return os.path.join(os.path.dirname(name), self._shared_lib_str.format(name=os.path.basename(name)))
 
     def _set_os(self, os_name):
+        self.os_name = os_name.lower()
         try:
-            getattr(self, '_' + os_name.lower())()
+            getattr(self, '_' + self.os_name)()
         except AttributeError:
             print 'Uh oh, the platform you\'re running on is not yet supported.'
             print 'Please contact "furious.luke@gmail.com" to fix this.'
@@ -54,7 +55,7 @@ class Platform(object):
         self._unix()
 
     def _unix(self):
-        self.base_dirs = strip_missing(['/usr', '/opt'])
+        self.base_dirs = strip_missing(['/usr', '/opt', '/opt/local'])
         self.search_dirs = strip_missing(['/usr/local', '/opt/local', os.environ['HOME']])
         self.binary_sub_dirs = [['bin']]
         self.header_sub_dirs = [['include']]

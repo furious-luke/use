@@ -1,4 +1,7 @@
+import copy
 from collections import OrderedDict
+from File import File
+from .Argument import ArgumentCheck
 from .conv import to_list
 
 ##
@@ -16,6 +19,7 @@ class Option(object):
             else:
                 self.name = self.long_opts[0]
         self.space = kwargs.get('space', True)
+        self.text = kwargs.get('text', None)
 
     def __eq__(self, op):
         if isinstance(op, Option):
@@ -26,11 +30,15 @@ class Option(object):
     def __hash__(self):
         return hash(self.name)
 
-    def __call__(self, value, short=True):
+    def __call__(self, value, opts, short=True):
         opt = self._opt(short)
         str_list = []
-        if isinstance(value, bool) and value:
-            str_list.append(opt)
+        if isinstance(value, bool):
+            if value:
+                if self.text is not None:
+                    str_list.append(self.text.format(**opts))
+                else:
+                    str_list.append(opt)
         elif isinstance(value, (list, tuple)):
             for v in value:
                 self._append(str_list, opt, v)
@@ -60,7 +68,7 @@ class Option(object):
 ##
 ##
 ##
-class Options(object):
+class OptionParser(object):
 
     def __init__(self, binary=''):
         self.binary = binary
@@ -83,21 +91,99 @@ class Options(object):
         # Insert keyword options.
         options.update(kwargs)
 
+        # Apply any transformations.
+        # TODO: Generalise.
+        if 'target' in options:
+            options['target'] = File(options['target'])
+
         # Process each option.
         for name, opt in self._opts.iteritems():
             val = options.get(name, None)
             if val is not None:
-                str_list.extend(opt(val))
+                str_list.extend(opt(val, options))
 
         return ' '.join(str_list)
 
     def make_options_dict(self, opt_str):
-        if isinstance(opt_str, dict):
-            return opt_str
-        opt_dict = {}
-        for o in opt_str.split():
-            for opt in self._opts.itervalues():
-                if opt == o:
-                    opt_dict[opt.name] = True
-                    break
-        return opt_dict
+        if isinstance(opt_str, (OptionDict, OptionJoin)):
+            return opt_str.get()
+        elif isinstance(opt_str, dict):
+            return dict(opt_str)
+        assert 0, 'Not implemented yet.'
+
+class OptionDict(object):
+
+    def __init__(self, cond=True, **kwargs):
+        self.condition = cond
+        self._opts = kwargs
+
+    def __eq__(self, op):
+        if type(self) != type(op):
+            return False
+
+        # TODO: Fix this condition compare.
+        if type(self.condition) != type(op.condition):
+            return False
+        if isinstance(self.condition, ArgumentCheck):
+            if not self.condition.compare(op.condition):
+                return False
+        elif isinstance(op.condition, ArgumentCheck):
+            if not op.condition.coimpare(self.condition):
+                return False
+        elif self.condition != op.condition:
+            return False
+
+        return self._opts == op._opts
+
+    def __ne__(self, op):
+        return not self.__eq__(op)
+
+    def __add__(self, op):
+        return OptionJoin(self, op)
+
+    def get(self):
+        if bool(self.condition):
+            return copy.deepcopy(self._opts)
+        else:
+            return {}
+
+class OptionJoin(object):
+
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+        self._merged = None
+
+    def __eq__(self, op):
+        if type(self) != type(op):
+            return False
+        if self.left != op.left:
+            return False
+        if self.right != op.right:
+            return False
+        return True
+
+    def __ne__(self, op):
+        return not self.__eq__(op)
+
+    def __add__(self, op):
+        return OptionJoin(self, op)
+
+    def get(self):
+        if self._merged is None:
+            self._merged = {}
+            self._update(self.left)
+            self._update(self.right)
+        return self._merged
+
+    def _update(self, op):
+        for k, v in op.get().iteritems():
+            if k in self._merged:
+                my_val = self._merged[k]
+                if isinstance(my_val, list):
+                    for x in to_list(v):
+                        my_val.append(x)
+                else:
+                    self._merged[k] = v
+            else:
+                self._merged[k] = copy.deepcopy(v)

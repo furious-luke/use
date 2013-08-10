@@ -1,4 +1,4 @@
-import os, shlex
+import os, shlex, errno
 from subprocess import Popen, PIPE
 
 def getarg(name, args, kwargs, required=True):
@@ -27,3 +27,12 @@ def run_command(command):
     proc = Popen(shlex.split(command), stdout=PIPE, stderr=PIPE)
     stdout, stderr = proc.communicate()
     return (proc.returncode, stdout, stderr)
+
+def make_dirs(path):
+    try:
+        os.makedirs(path)
+    except OSError as ex:
+        if ex.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else:
+            raise

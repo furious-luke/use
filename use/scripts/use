@@ -6,15 +6,20 @@
 
 import os, sys, logging
 from use.Context import Context
+from use.Platform import platform
 
-# Setup logging.
-logging.basicConfig(level=logging.DEBUG)
+# Setup debugging logging.
+try:
+    os.remove('config.log')
+except:
+    pass
+logging.basicConfig(level=logging.DEBUG, filename='config.log')
 
 # Where has this been launched from?
 launch_dir = os.getcwd()
-script = os.path.join(launch_dir, 'build.py')
+script = os.path.join(launch_dir, 'usescript.py')
 if not os.path.exists(script):
-    print('No "build.py" to execute.')
+    print('No "usescript.py" to execute.')
     sys.exit(1)
 
 # Create the global context.
@@ -25,6 +30,9 @@ ctx = Context()
 globals_dict = {
 
     # Use shortcuts to insert 
+    'platform': platform,
+    'arguments': ctx.new_arguments,
+    'options': ctx.new_options,
     'use': ctx.new_use,
     'rule': ctx.new_rule,
 }

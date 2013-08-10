@@ -1,9 +1,11 @@
+import sys, logging
+from .Action import CommandFailed
 from .conv import to_list
-import logging
 
 class Builder(object):
 
-    def __init__(self, sources, targets, actions=[], options={}):
+    def __init__(self, ctx, sources, targets, actions=[], options={}):
+        self.ctx = ctx
         self.sources = to_list(sources)
         self.targets = to_list(targets)
         self.actions = to_list(actions)
@@ -26,9 +28,12 @@ class Builder(object):
         logging.debug('Builder: Updating.')
 
         for action in self.actions:
-            action(self.options)
-            if action.status == action.FAILED:
-                pass
+            try:
+                action(self.options)
+            except CommandFailed as ex:
+                sys.stdout.write(ex.command.stdout)
+                sys.stderr.write(ex.command.stderr)
+                self.ctx.exit()
         self.post_update(ctx)
 
         logging.debug('Builder: Done updating.')

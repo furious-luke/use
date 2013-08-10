@@ -1,8 +1,10 @@
 import logging
+from .Validatable import Validatable
 
-class Node(object):
+class Node(Validatable):
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super(Node, self).__init__(*args, **kwargs)
         self.rule = None
         self.builder = None
         self.products = []
