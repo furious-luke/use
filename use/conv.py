@@ -1,6 +1,11 @@
-import dateutil.parser, re, unicodedata
+import re, unicodedata
 from xml.dom import minidom
 from . import containers
+
+try:
+    import dateutil.parser
+except:
+    pass
 
 # Don't assume googlemaps is available.
 try:

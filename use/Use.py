@@ -61,7 +61,7 @@ class Use(Node):
 
     @property
     def enabled(self):
-        return self.found and bool(self.condition)
+        return self.found and (self.condition is None or bool(self.condition))
 
     def has_packages(self):
         return True
@@ -69,12 +69,12 @@ class Use(Node):
     def package_iter(self):
         yield self.package
 
-    def feature(self, name, cond=None, opts=None, **kwargs):
+    def feature(self, name, opts=None, cond=None, **kwargs):
         if opts and kwargs:
             opts = opts + self.package.ctx.new_options(**kwargs)
         elif kwargs:
             opts = self.package.ctx.new_options(**kwargs)
-        return self.package.feature(name, self, cond, opts)
+        return self.package.feature(name, self, opts, cond)
 
     def make_options_dict(self, options):
         return self.selected.options().make_options_dict(options)
@@ -83,6 +83,8 @@ class Use(Node):
         self.selected.apply(prods, self.options, options)
 
     def expand(self, nodes, options={}):
+        if self.condition is not None and not bool(self.condition):
+            return None
         return self.selected.expand(nodes, self.options, options)
 
 ##

@@ -82,6 +82,8 @@ class Installation(Node):
                 self.append_headers(opts)
             else:
                 self.append_libraries(opts)
+                if 'shared_lib' in opts:
+                    self.append_rpaths(opts)
 
     def actions(self, *args, **kwargs):
         return self.version.actions(self, *args, **kwargs)
@@ -92,13 +94,8 @@ class Installation(Node):
         if hdr_dirs:
             dst = opts.setdefault('header_dirs', [])
             for d in hdr_dirs:
-                if d not in dst:
+                if d not in dst and d not in platform.system_header_dirs:
                     dst.append(d)
-        # if hdrs:
-        #     dst = opts.setdefault('headers', [])
-        #     for h in hdrs:
-        #         if h not in dst:
-        #             dst.append(h)
 
     def append_libraries(self, opts):
         lib_dirs = self.library_dirs
@@ -106,13 +103,21 @@ class Installation(Node):
         if lib_dirs:
             dst = opts.setdefault('library_dirs', [])
             for d in lib_dirs:
-                if d not in dst:
+                if d not in dst and d not in platform.system_library_dirs:
                     dst.append(d)
         if libs:
             dst = opts.setdefault('libraries', [])
             for h in libs:
                 if h not in dst:
                     dst.append(h)
+
+    def append_rpaths(self, opts):
+        lib_dirs = self.library_dirs
+        if lib_dirs:
+            dst = opts.setdefault('rpath_dirs', [])
+            for d in lib_dirs:
+                if d not in dst and d not in platform.system_library_dirs:
+                    dst.append(d)
 
     def feature(self, name):
         return self._ftr_map.get(name)
@@ -457,7 +462,8 @@ class Package(object):
         self.ctx = ctx
         self.name = self.__class__.__name__
         self.features = {} # must come before versions
-        self.versions = [v(self) for v in self.versions]
+        self.versions = [v(self) for v in self.versions] if hasattr(self, 'versions') else []
+        self.sub_packages = [ctx.load_package(n) for n in self.sub_packages] if hasattr(self, 'sub_packages') else []
         self._opts = OptionParser()
 
     ##
@@ -492,9 +498,9 @@ class Package(object):
     def add_feature(self, ftr):
         self.features.setdefault(ftr.name, {})[ftr.version] = ftr
 
-    def feature(self, name, use, cond=None, options=None):
+    def feature(self, name, use, options=None, cond=None):
         from .Feature import FeatureUse
-        ftr_use = FeatureUse(name, use, cond, options)
+        ftr_use = FeatureUse(name, use, options, cond)
         self.ctx.uses.append(ftr_use)
         return ftr_use
 

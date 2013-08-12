@@ -7,6 +7,7 @@
 import os, sys, logging
 from use.Context import Context
 from use.Platform import platform
+from use.Argument import Argument
 
 # Setup debugging logging.
 try:
@@ -35,6 +36,7 @@ globals_dict = {
     'options': ctx.new_options,
     'use': ctx.new_use,
     'rule': ctx.new_rule,
+    'targets': Argument('targets', ctx),
 }
 
 # Try to execute the build script.

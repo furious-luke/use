@@ -65,6 +65,14 @@ class Context(object):
         # Parse.
         self.arguments = self.parser.parse_args()
 
+        # Parse the options now.
+        for use in self.uses:
+            if use.options is not None:
+                use.options.parse(self)
+        for rule in self.rules:
+            if rule.options is not None:
+                rule.options.parse(self)
+
     ##
     ## Search for packages.
     ##
@@ -240,7 +248,8 @@ class Context(object):
         # assert use in self.uses
 
         # Create a new rule to encapsulate this.
-        rule = Rule(src, use, kwargs)
+        opts = self.new_options(**kwargs)
+        rule = Rule(src, use, opts)
 
         # # Source can either be a regular expression, a list
         # # of regular expressions or a RuleList. If we have a rule
@@ -295,14 +304,9 @@ class Context(object):
     def save(self):
         parser = self.parser
         del self.parser
-        # old_bldrs = getattr(self, 'old_bldrs', None)
-        # if old_bldrs is not None:
-        #     del self.old_bldrs
         with open('.use.db', 'w') as out:
             pickle.dump(self, out)
         self.parser = parser
-        # if old_bldrs is not None:
-        #     self.old_bldrs = old_bldrs
 
     ##
     ## Load context from file.

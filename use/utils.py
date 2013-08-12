@@ -14,9 +14,9 @@ def load_class(module_name, class_name=None):
     if not class_name:
         class_name = module_name[module_name.rfind('.') + 1:]
     try:
-        klass = getattr(__import__(module_name, fromlist=[class_name]), class_name)
+        tmp_module_name = 'use.packages.' + module_name
+        klass = getattr(__import__(tmp_module_name, fromlist=[class_name]), class_name)
     except:
-        module_name = 'use.packages.' + module_name
         klass = getattr(__import__(module_name, fromlist=[class_name]), class_name)
     return klass
 

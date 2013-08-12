@@ -35,23 +35,7 @@ class Resolver(Node):
 
         # Just use the first installation of every package.
         for use in ctx.uses:
-
-            # Don't process feature uses yet.
-            if not isinstance(use, FeatureUse):
-
-                # Get the first installation.
-                use.selected = None
-                for ver in use.package.versions:
-                    for inst in ver.installations:
-                        use.selected = inst
-                        break
-                    if use.selected is not None:
-                        break
-
-                # Check for missing.
-                if use.selected is None:
-                    sys.stdout.write('\n    Failed to resolve "' + use.package.name + '".\n')
-                    sys.exit(1)
+            self.check_use(use)
 
         # Just use the first installation of every package.
         for use in ctx.uses:
@@ -74,3 +58,44 @@ class Resolver(Node):
                 if use.selected is None:
                     sys.stdout.write('\n    Failed to resolve "' + use.ftr + '".')
                     sys.exit(1)
+
+    def check_use(self, use):
+        from .Feature import FeatureUse
+
+        # Don't process feature uses.
+        if not isinstance(use, FeatureUse):
+            use.selected = self.check_package(use.package)
+
+    def check_package(self, pkg, fail=True):
+
+        # Get the first installation.
+        sel = None
+        for ver in pkg.versions:
+            for inst in ver.installations:
+                sel = inst
+                break
+            if sel is not None:
+                break
+
+        # Handle no results.
+        if sel is None:
+
+            # If this is a meta package, scan sub-packages.
+            if pkg.sub_packages:
+                sel = self.meta(pkg)
+            elif fail:
+                sys.stdout.write('\n    Failed to resolve "' + pkg.name + '".\n')
+                sys.exit(1)
+
+        return sel
+
+    def meta(self, pkg):
+
+        # Accept the first valid result.
+        sel = None
+        for sub in pkg.sub_packages:
+            sel = self.check_package(sub, False)
+            if sel is not None:
+                break
+
+        return sel

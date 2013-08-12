@@ -35,7 +35,7 @@ class Feature(Version):
 
 class FeatureUse(Use):
 
-    def __init__(self, name, use, cond=None, options=None):
+    def __init__(self, name, use, options=None, cond=None):
         self.feature_name = name
         self.use = use
-        super(FeatureUse, self).__init__(use.package, cond, options)
+        super(FeatureUse, self).__init__(use.package, options, cond)

@@ -11,6 +11,8 @@ class Platform(object):
         self.binary_sub_dirs = []
         self.header_sub_dirs = []
         self.library_sub_dirs = []
+        self.system_header_dirs = []
+        self.system_library_dirs = []
         self._static_lib_str = 'lib{name}.a'
         self._shared_lib_str = 'lib{name}.so'
         self._set_os(platform.system())
@@ -60,5 +62,7 @@ class Platform(object):
         self.binary_sub_dirs = [['bin']]
         self.header_sub_dirs = [['include']]
         self.library_sub_dirs = [['lib'], ['lib64']]
+        self.system_header_dirs = ['/usr/include']
+        self.system_library_dirs = ['/usr/lib', '/usr/lib64']
 
 platform = Platform()

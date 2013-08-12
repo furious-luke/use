@@ -1,7 +1,7 @@
 import copy
 from collections import OrderedDict
 from File import File
-from .Argument import ArgumentCheck
+from .Argument import ArgumentCheck, Argument
 from .conv import to_list
 
 ##
@@ -61,9 +61,6 @@ class Option(object):
         elif self.long_opts:
             return self.long_opts[0]
         return None
-
-    # def _expand(self, vals, flag):
-    #     return [flag + v for v in vals]
 
 ##
 ##
@@ -133,7 +130,7 @@ class OptionDict(object):
         elif self.condition != op.condition:
             return False
 
-        return self._opts == op._opts
+        return self._opts == op._opts;
 
     def __ne__(self, op):
         return not self.__eq__(op)
@@ -146,6 +143,11 @@ class OptionDict(object):
             return copy.deepcopy(self._opts)
         else:
             return {}
+
+    def parse(self, ctx):
+        for k, v in self._opts.iteritems():
+            if isinstance(v, (Argument, ArgumentCheck)):
+                self._opts[k] = str(v)
 
 class OptionJoin(object):
 
@@ -175,6 +177,10 @@ class OptionJoin(object):
             self._update(self.left)
             self._update(self.right)
         return self._merged
+
+    def parse(self, ctx):
+        self.left.parse(ctx)
+        self.right.parse(ctx)
 
     def _update(self, op):
         for k, v in op.get().iteritems():
