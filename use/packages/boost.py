@@ -1,20 +1,20 @@
 import use
 from ..Platform import platform
 
-class regex(use.Feature):
-    libraries = ['boost_regex']
+# class regex(use.Feature):
+#     libraries = ['boost_regex']
 
-class iostreams(use.Feature):
-    libraries = ['boost_iostreams']
+# class iostreams(use.Feature):
+#     libraries = ['boost_iostreams']
 
-class filesystem(use.Feature):
-    libraries = ['boost_filesystem']
+# class filesystem(use.Feature):
+#     libraries = ['boost_filesystem']
 
 class Default(use.Version):
     version = 'default'
     headers = ['boost/optional.hpp']
-    libraries = ['boost_system']
-    features = [regex, iostreams, filesystem]
+    libraries = ['boost_system', 'boost_regex', 'boost_iostreams', 'boost_filesystem']
+    # features = [regex, iostreams, filesystem]
 
     def __init__(self, *args, **kwargs):
         super(Default, self).__init__(*args, **kwargs)

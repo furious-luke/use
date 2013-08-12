@@ -22,6 +22,8 @@ class Context(object):
         self.resolver = Resolver()
         self._pkg_map = {}
         self.crcs = {}
+        self.src_crcs = {}
+        self.old_bldrs = {}
         self.parser = argparse.ArgumentParser('"Use": Software configuration and build.')
 
     def __eq__(self, op):
@@ -105,6 +107,11 @@ class Context(object):
             sys.stdout.flush()
             self.resolver(self)
             sys.stdout.write(' done.\n')
+
+        # Clear CRCs and old builders.
+        self.crcs = {}
+        self.src_crcs = {}
+        self.old_bldrs = {}
 
         # Save configuration results.
         self.save()
@@ -216,13 +223,13 @@ class Context(object):
     ##
     ## Create a Use on this context.
     ##
-    def new_use(self, pkg_name, cond=None, opts=None, **kwargs):
+    def new_use(self, pkg_name, opts=None, cond=None, **kwargs):
         pkg = self.load_package(pkg_name)
         if opts and kwargs:
             opts = opts + self.new_options(**kwargs)
         elif kwargs:
             opts = self.new_options(**kwargs)
-        use = Use(pkg, cond, opts)
+        use = Use(pkg, opts, cond)
         self.uses.append(use)
         return use
 
@@ -262,16 +269,25 @@ class Context(object):
     def node_crc(self, node):
         return self.crcs.get(repr(node), None)
 
+    def node_source_crcs(self, node):
+        return self.src_crcs.get(repr(node), None)
+
     def update_node_crcs(self):
         for rule in self.rules:
-            for n in rule.source_nodes:
+            for n in rule.nodes:
                 self.update_node_crc(n)
+
         to_del = [k for k, v in self.crcs.iteritems() if v is None]
         for k in to_del:
             del self.crcs[k]
 
+        to_del = [k for k, v in self.src_crcs.iteritems() if v is None]
+        for k in to_del:
+            del self.src_crcs[k]
+
     def update_node_crc(self, node):
         self.crcs[repr(node)] = node.current_crc(self)
+        self.src_crcs[repr(node)] = node.current_source_crcs(self)
 
     ##
     ## Store context state to file.
@@ -279,9 +295,14 @@ class Context(object):
     def save(self):
         parser = self.parser
         del self.parser
+        # old_bldrs = getattr(self, 'old_bldrs', None)
+        # if old_bldrs is not None:
+        #     del self.old_bldrs
         with open('.use.db', 'w') as out:
             pickle.dump(self, out)
         self.parser = parser
+        # if old_bldrs is not None:
+        #     self.old_bldrs = old_bldrs
 
     ##
     ## Load context from file.
@@ -312,6 +333,14 @@ class Context(object):
 
         # Copy over CRCs.
         self.crcs = old_ctx.crcs
+        self.src_crcs = old_ctx.src_crcs
+
+        # Build a suite of old builders.
+        self.old_bldrs = old_ctx.old_bldrs
+        for rule in old_ctx.rules:
+            for n in rule.product_nodes:
+                if n.builder is not None:
+                    self.old_bldrs[repr(n)] = n.builder
 
         # Run the resolver again.
         if self.resolver is not None:

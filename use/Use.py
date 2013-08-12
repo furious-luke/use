@@ -9,7 +9,7 @@ from .utils import load_class, getarg
 ##
 class Use(Node):
 
-    def __init__(self, package, cond=None, options=None):
+    def __init__(self, package, options=None, cond=None):
         super(Use, self).__init__()
         self.package = package
         self.condition = cond

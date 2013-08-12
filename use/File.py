@@ -15,10 +15,17 @@ class File(Node):
     def invalidated(self, ctx):
 
         # If we have a builder then we know this node is a product.
-        # If that's the case, then just check if the file exists or not.
         if self.builder:
-            return not os.path.exists(self.path)
 
-        # If we don't have a builder then we need to do a CRC check.
+            # If the file does not exist then we certainly need to rebuild
+            # it.
+            if not os.path.exists(self.path):
+                return True
+
+            # If it does exist then check our stored CRCs for sources.
+            return Node.invalidated(self, ctx)
+
+        # If we don't have a builder then we need to do a CRC check on the
+        # file itself to see if it has changed.
         else:
             return self.invalidated_crc(self.path, ctx)

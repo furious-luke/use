@@ -77,6 +77,10 @@ class Rule(object):
             nodes = []
         return self._src_nodes + nodes
 
+    @property
+    def nodes(self):
+        return self.source_nodes + self.product_nodes
+
     def __repr__(self):
         return str(self.source) + ' -> ' + str(self.use)
 

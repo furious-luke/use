@@ -8,10 +8,22 @@ class Builder(object):
         self.ctx = ctx
         self.sources = to_list(sources)
         self.targets = to_list(targets)
+        self.depends = []
         self.actions = to_list(actions)
         self.options = dict(options)
         self.options['sources'] = self.sources
         self.options['targets'] = self.targets
+
+    def __eq__(self, op):
+        # TODO: Need to compare actions.
+        return self.options == op.options
+
+    def __ne__(self, op):
+        return not self.__eq__(op)
+
+    @property
+    def dependent_nodes(self):
+        return self.sources + self.depends
 
     def build_sources(self, ctx):
         logging.debug('Builder: Building sources.')

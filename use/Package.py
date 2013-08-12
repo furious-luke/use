@@ -377,11 +377,11 @@ class Version(object):
 
         # Clear out any failures.
         if not static_res[0]:
-            static_libs = []
+            static_libs = [None]*len(libs)
         else:
             static_libs = static_res[1]
         if not shared_res[1]:
-            shared_libs = []
+            shared_libs = [None]*len(libs)
         else:
             shared_libs = shared_res[1]
 
