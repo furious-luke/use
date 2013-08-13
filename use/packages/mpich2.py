@@ -29,6 +29,7 @@ class Default(use.Version):
     headers = ['mpi.h']
     libraries = ['mpich', 'pmpich']
     features = [mpicc]
+    url = 'http://www.mcs.anl.gov/research/projects/mpich2staging/goodell/downloads/tarballs/mpich2-current.tar.gz'
 
 ##
 ## MPICH2

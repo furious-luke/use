@@ -25,6 +25,10 @@ class Context(object):
         self.src_crcs = {}
         self.old_bldrs = {}
         self.parser = argparse.ArgumentParser('"Use": Software configuration and build.')
+        self.parser.add_argument('targets', nargs='*', help='Specify build targets.')
+        self.parser.add_argument('-s', dest='show_config', action='store_true', help='Show current configuration.')
+        self.arguments = None
+        self._def_args = {}
 
     def __eq__(self, op):
 
@@ -58,12 +62,34 @@ class Context(object):
     def parse_arguments(self):
 
         # Add arguments.
-        self.parser.add_argument('targets', nargs='*', help='Specify build targets.')
         for pkg in self.packages:
             pkg.add_arguments(self.parser)
 
         # Parse.
         self.arguments = self.parser.parse_args()
+
+        # Check if we have an old structure to use, unless the user
+        # requested a reconfiguration.
+        if 'configure' not in self.arguments.targets and os.path.exists('.use.db'):
+            with open('.use.db', 'r') as inf:
+                old_ctx = pickle.load(inf)
+
+            # Only update arguments if allowed.
+            for k, v in self.arguments.__dict__.iteritems():
+                if v is not None:
+                    old_ctx.arguments.__dict__[k] = v
+            self.arguments = old_ctx.arguments
+
+        # If the user requested to see current configuration then
+        # do so now, unless they wished to clean.
+        if self.arguments.show_config:
+            print 'Current configuration:'
+            for k, v in self.arguments.__dict__.iteritems():
+                if k in ['show_config']:
+                    continue
+                if v is not None and (not isinstance(v, list) or len(v) > 0):
+                    print '  {} = {}'.format(k, v)
+            self.exit(False)
 
         # Parse the options now.
         for use in self.uses:
@@ -72,6 +98,12 @@ class Context(object):
         for rule in self.rules:
             if rule.options is not None:
                 rule.options.parse(self)
+
+    def argument(self, name):
+        val = getattr(self.arguments, name, None)
+        if val is None:
+            return self._def_args.get(name, None)
+        return val
 
     ##
     ## Search for packages.
@@ -142,8 +174,11 @@ class Context(object):
             return True
 
         # Check if anything has changed in the build structure.
-        with open('.use.db', 'r') as inf:
-            old_ctx = pickle.load(inf)
+        if os.path.exists('.use.db'):
+            with open('.use.db', 'r') as inf:
+                old_ctx = pickle.load(inf)
+        else:
+            old_ctx = None
         if self != old_ctx:
             sys.stdout.write('Build structure has changed.\n')
             return True
@@ -209,7 +244,7 @@ class Context(object):
     def new_options(self, *args, **kwargs):
         return OptionDict(*args, **kwargs)
 
-    def load_package(self, pkg_name):
+    def load_package(self, pkg_name, explicit=False):
 
         # Load the package class.
         pkg_class = load_class(pkg_name)
@@ -218,13 +253,14 @@ class Context(object):
         if pkg_class not in self._pkg_map:
 
             # Instantiate the package and insert into mapping.
-            pkg = pkg_class(self)
+            pkg = pkg_class(self, explicit)
             self._pkg_map[pkg_class] = pkg
             self.packages.append(pkg)
 
         # Use the existing package.
         else:
             pkg = self._pkg_map[pkg_class]
+            pkg.explicit = True if explicit else pkg.explicit
 
         return pkg
 
@@ -232,7 +268,7 @@ class Context(object):
     ## Create a Use on this context.
     ##
     def new_use(self, pkg_name, opts=None, cond=None, **kwargs):
-        pkg = self.load_package(pkg_name)
+        pkg = self.load_package(pkg_name, True)
         if opts and kwargs:
             opts = opts + self.new_options(**kwargs)
         elif kwargs:
@@ -270,9 +306,10 @@ class Context(object):
         pkg_class = load_class(name)
         return self._pkg_map[pkg_class]
 
-    def exit(self):
-        self.update_node_crcs()
-        self.save()
+    def exit(self, save=True):
+        if save:
+            self.update_node_crcs()
+            self.save()
         sys.exit(1)
 
     def node_crc(self, node):
@@ -302,11 +339,21 @@ class Context(object):
     ## Store context state to file.
     ##
     def save(self):
+
+        # Parser won't pickle.
         parser = self.parser
         del self.parser
+
+        # Don't save any targets.
+        targets = self.arguments.targets
+        self.arguments.targets = None
+
         with open('.use.db', 'w') as out:
             pickle.dump(self, out)
+
+        # Reset.
         self.parser = parser
+        self.arguments.targets = targets
 
     ##
     ## Load context from file.

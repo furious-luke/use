@@ -135,6 +135,7 @@ class Version(object):
     def __init__(self, package):
         self.package = package
         self.installations = []
+        self.url = getattr(self, 'url', None)
 
         # Set my version name.
         if not hasattr(self, 'version'):
@@ -458,12 +459,14 @@ class Version(object):
 ##
 class Package(object):
 
-    def __init__(self, ctx):
+    def __init__(self, ctx, explicit=False):
         self.ctx = ctx
-        self.name = self.__class__.__name__
+        self.explicit = explicit
+        self.name = self.name if hasattr(self, 'name') else self.__class__.__name__
+        self.option_name = self.option_name if hasattr(self, 'option_name') else self.name.lower()
         self.features = {} # must come before versions
         self.versions = [v(self) for v in self.versions] if hasattr(self, 'versions') else []
-        self.sub_packages = [ctx.load_package(n) for n in self.sub_packages] if hasattr(self, 'sub_packages') else []
+        self.sub_packages = [ctx.load_package(n, False) for n in self.sub_packages] if hasattr(self, 'sub_packages') else []
         self._opts = OptionParser()
 
     ##
@@ -614,26 +617,63 @@ class Package(object):
     ## Add arguments to parser.
     ##
     def add_arguments(self, parser):
-        name = self.name.lower()
+        def _check_has(pkg):
+            avail = {}
+            for attr in ['binaries', 'headers', 'libraries', 'url']:
+                has = False
 
-        # Add base directory selection.
-        parser.add_argument('--' + name + '-dir', dest=name + '-dir',
-                            help='Specify base directory for %s.'%self.name)
+                # Check package class.
+                if getattr(pkg, attr, None):
+                    has = True
+
+                # Check all versions.
+                if not has:
+                    for ver in pkg.versions:
+                        if getattr(ver, attr, None):
+                            has = True
+                            break
+
+                avail[attr] = has
+
+            # Check sub-packages.
+            for sub in pkg.sub_packages:
+                sub_avail, has_any = _check_has(sub)
+                for attr in ['binaries', 'headers', 'libraries', 'url']:
+                    avail[attr] = True if sub_avail[attr] else avail[attr]
+
+            has_any = False
+            for attr in ['binaries', 'headers', 'libraries']:
+                if avail[attr]:
+                    has_any = True
+                    break
+
+            return avail, has_any
+
+        # Don't need to do this if the package has not been explicitly
+        # requested.
+        if not self.explicit:
+            return
+
+        # Check for existence of binaries, headers and libraries.
+        avail, has_any = _check_has(self)
+
+        # Add base directory selection if there is any of binaries,
+        # headers or libraries to find.
+        if has_any:
+            name = self.option_name
+            parser.add_argument('--' + name + '-dir', dest=name + '-dir',
+                                help='Specify base directory for %s.'%self.name)
 
         # Check for usage of headers, binaries or libraries.
         for attr, arg, help in [('binaries', '-bin-dir', 'Specify binary directory for %s.'),
                                 ('headers', '-inc-dir', 'Specify include directory for %s.'),
-                                ('libraries', '-lib-dir', 'Specify library directory for %s.')]:
-            has = False
-            if getattr(self, attr, None):
-                has_hdrs = True
-            else:
-                for ver in self.versions:
-                    if getattr(ver, attr, None):
-                        has = True
-                        break
-            if has:
-                parser.add_argument('--' + name + arg, dest=name + arg, help=help%self.name)
+                                ('libraries', '-lib-dir', 'Specify library directory for %s.'),
+                                ('url', '-download', 'Download and install %s.')]:
+            if avail[attr]:
+                if attr == 'url':
+                    self.ctx.new_arguments()('--' + name + arg, dest=name + arg, action='store_true', help=help%self.name)
+                else:
+                    self.ctx.new_arguments()('--' + name + arg, dest=name + arg, help=help%self.name)
 
     ##
     ##

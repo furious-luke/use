@@ -4,7 +4,23 @@ class Arguments(object):
         self._ctx = ctx
 
     def __call__(self, *args, **kwargs):
+
+        # Replace any default with None and store the default
+        # for later.
+        default = kwargs.pop('default', None)
+        kwargs['default'] = None
+        if default is None:
+            if kwargs.get('action', None) == 'store_true':
+                default = False
+            elif kwargs.get('action', None) == 'store_false':
+                default = True
+
+        # Create the argument to get hold of destination name.
         act = self._ctx.parser.add_argument(*args, **kwargs)
+
+        # Set the default.
+        self._ctx._def_args[act.dest] = default
+
         new_arg = Argument(act.dest, self._ctx)
         setattr(self, new_arg.name, new_arg)
         return self
@@ -31,7 +47,7 @@ class Argument(object):
         return ArgumentCheck('in', self, op)
 
     def value(self):
-        return getattr(self.context.arguments, self.name)
+        return self.context.argument(self.name)
 
     def compare(self, op):
         return self.name == op.name
