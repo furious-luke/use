@@ -78,9 +78,8 @@ class Installation(Node):
         for prod in prods:
             bldr = prod[1]
             opts = bldr.options
-            if 'compile' in opts:
-                self.append_headers(opts)
-            else:
+            self.append_headers(opts)
+            if 'compile' not in opts:
                 self.append_libraries(opts)
                 if 'shared_lib' in opts:
                     self.append_rpaths(opts)
@@ -554,6 +553,7 @@ class Package(object):
         # Either single or multi.
         prods = []
         if not single:
+            opts['targets'] = []
             for node in nodes:
                 src_fn, src_suf = os.path.splitext(node.path)
                 src = src_fn + (suf if suf else src_suf)
@@ -562,6 +562,7 @@ class Package(object):
                     new_src = '/' + new_src
                 dst = os.path.join(pre, new_src)
                 target = default_target_node(dst)
+                opts['targets'].append(target)
                 prods.append(((node,),
                               default_builder(self.ctx, node, target, inst.actions(node, target, opts), opts),
                               (target,)))
@@ -569,6 +570,7 @@ class Package(object):
             target = opts.get('target', None)
             target = os.path.join(pre, target)
             target = default_target_node(target)
+            opts['target'] = target
             prods.append((list(nodes),
                           default_builder(self.ctx, nodes, target, inst.actions(nodes, target, opts), opts),
                           (target,)))
