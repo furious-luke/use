@@ -88,11 +88,6 @@ class OptionParser(object):
         # Insert keyword options.
         options.update(kwargs)
 
-        # Apply any transformations.
-        # TODO: Generalise.
-        if 'target' in options:
-            options['target'] = File(options['target'])
-
         # Process each option.
         for name, opt in self._opts.iteritems():
             val = options.get(name, None)
