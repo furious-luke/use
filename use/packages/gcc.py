@@ -4,12 +4,10 @@ from ..Platform import platform
 from ..Action import Command
 from ..Options import Option
 from ..File import File
+from ..Scanner import CScanner
 from ..utils import getarg
 from ..conv import to_list, to_iter
 
-##
-##
-##
 class Default(use.Version):
     version = 'default'
     binaries = ['gcc']
@@ -17,12 +15,7 @@ class Default(use.Version):
     def actions(self, inst, sources, targets=[], options={}):
         return [Command(self.package.options())]
 
-##
-## GNU "gcc" tool.
-##
 class gcc(use.Package):
-    default_target_node = use.File
-    default_builder = use.Builder
     default_binary_filename = 'a.out'
     versions = [Default]
 
@@ -67,6 +60,12 @@ class gcc(use.Package):
 
         # Call parent.
         prods = super(gcc, self).make_productions(nodes, inst, opts, single=single)
+
+        # Prepare the scanners for each node.
+        for n in nodes:
+            if n.scanner is None:
+                if os.path.splitext(str(n))[1].lower() in ['.c', '.cc', '.cxx', '.cpp']:
+                    n.scanner = CScanner(self.ctx)
 
         logging.debug('gcc: Done making productions.')
         return prods

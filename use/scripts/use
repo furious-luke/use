@@ -50,11 +50,14 @@ ctx.parse_arguments()
 # Perform configuration.
 ctx.configure()
 
-# Scan for source files.
-ctx.scan()
+# Locate source files.
+ctx.find_sources()
 
 # Expand into products.
 ctx.expand()
+
+# Scan for implicit dependencies.
+ctx.scan()
 
 # If there is a 'post_configure' callable in the locals
 # dictionary call it now.

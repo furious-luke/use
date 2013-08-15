@@ -5,6 +5,7 @@ from .Rule import *
 from .Resolver import Resolver
 from .Argument import Arguments
 from .Options import OptionDict
+from .File import File
 from .conv import to_list
 import logging
 
@@ -18,6 +19,7 @@ class Context(object):
         self.packages = []
         self.rules = []
         self.uses = []
+        self._node_map = {}
         self.targets = []
         self.resolver = Resolver()
         self._pkg_map = {}
@@ -195,9 +197,9 @@ class Context(object):
     ##
     ## Scan files for rule sources.
     ##
-    def scan(self):
+    def find_sources(self):
         for rule in self.rules:
-            rule.scan(self)
+            rule.find_sources(self)
 
     ##
     ## Expand sources into objects.
@@ -206,6 +208,16 @@ class Context(object):
         logging.debug('Context: Expanding rules.')
         for rule in self.rules:
             rule.expand(self)
+
+    def scan(self):
+        logging.debug('Context: Scanning for dependencies.')
+        done = False
+        while not done:
+            done = True
+            for rule in self.rules:
+                tmp = rule.scan(self)
+                done = tmp if tmp is False else done
+        logging.debug('Context: Done scanning for dependencies.')
 
     ##
     ## Decide which targets to build.
@@ -319,9 +331,8 @@ class Context(object):
         return self.src_crcs.get(repr(node), None)
 
     def update_node_crcs(self):
-        for rule in self.rules:
-            for n in rule.nodes:
-                self.update_node_crc(n)
+        for n in self._node_map.itervalues():
+            self.update_node_crc(n)
 
         to_del = [k for k, v in self.crcs.iteritems() if v is None]
         for k in to_del:
@@ -396,3 +407,11 @@ class Context(object):
         # Run the resolver again.
         if self.resolver is not None:
             self.resolver(self)
+
+    def node(self, node_class, *args, **kwargs):
+        n = node_class(*args, **kwargs)
+        rep = repr(n)
+        return self._node_map.setdefault(rep, n)
+
+    def file(self, *args, **kwargs):
+        return self.node(File, *args, **kwargs)

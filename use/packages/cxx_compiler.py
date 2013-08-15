@@ -4,7 +4,7 @@ from ..Platform import platform
 class cxx_compiler(use.Package):
     name = 'C++ compiler'
     option_name = 'cxx'
-    sub_packages = ['gcc', 'clangxx']
+    sub_packages = ['gxx', 'clangxx']
 
     def resolve(self):
 

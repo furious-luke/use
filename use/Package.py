@@ -1,5 +1,6 @@
 import sys, os, pickle, logging
 from .Node import Node
+from .File import File
 from .Builder import Builder
 from .Platform import platform
 from .Location import Location
@@ -459,6 +460,8 @@ class Version(object):
 class Package(object):
 
     def __init__(self, ctx, explicit=False):
+        self.default_builder = getattr(self, 'default_builder', Builder)
+        self.default_target_node = getattr(self, 'default_target_node', File)
         self.ctx = ctx
         self.explicit = explicit
         self.name = self.name if hasattr(self, 'name') else self.__class__.__name__
@@ -528,7 +531,7 @@ class Package(object):
     ## from the "default_builder" attribute will be made, one for each
     ## of the nodes.
     ##
-    def make_productions(self, nodes, inst, opts, single=False):
+    def make_productions(self, nodes, inst, opts, single=False, **kwargs):
         logging.debug('Package: Making productions.')
 
         # If we don't have a default builder or default target
@@ -561,18 +564,18 @@ class Package(object):
                 if src[0] == '/' and dir_strip == 0:
                     new_src = '/' + new_src
                 dst = os.path.join(pre, new_src)
-                target = default_target_node(dst)
+                target = self.ctx.node(default_target_node, dst)
                 opts['targets'].append(target)
                 prods.append(((node,),
-                              default_builder(self.ctx, node, target, inst.actions(node, target, opts), opts),
+                              default_builder(self.ctx, node, target, inst.actions(node, target, opts), opts, **kwargs),
                               (target,)))
         else:
             target = opts.get('target', None)
             target = os.path.join(pre, target)
-            target = default_target_node(target)
+            target = self.ctx.node(default_target_node, target)
             opts['target'] = target
             prods.append((list(nodes),
-                          default_builder(self.ctx, nodes, target, inst.actions(nodes, target, opts), opts),
+                          default_builder(self.ctx, nodes, target, inst.actions(nodes, target, opts), opts, **kwargs),
                           (target,)))
 
         logging.debug('Package: Done making productions.')

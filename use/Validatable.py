@@ -24,3 +24,6 @@ class Validatable(object):
             return binascii.crc32(open(filename, 'rb').read()) & 0xFFFFFFFF
         else:
             return None
+
+    def _crc32(self, data):
+        return binascii.crc32(data) & 0xFFFFFFFF

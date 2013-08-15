@@ -8,9 +8,12 @@ class Node(Validatable):
         self.rule = None
         self.builder = None
         self.products = []
+        self.dependencies = []
+        self.scanner = None
         self._seen = False
         self._invalid = False
         self._src_crcs = None
+        self._done_scan = False
 
     def __eq__(self, op):
         return repr(self) == repr(op)
@@ -39,6 +42,12 @@ class Node(Validatable):
             if self._invalid:
                 logging.debug('Node: Parents are invalidated.')
 
+        # Build our dependencies.
+        invalid = self.build_dependencies(ctx)
+        if invalid:
+            self._invalid = invalid
+            logging.debug('Node: Dependencies are invalidated.')
+
         # If our parents are invalidated we must rebuild. If not,
         # check if we're invalidated in any other way.
         if not self._invalid:
@@ -55,6 +64,17 @@ class Node(Validatable):
         # Return our invalidation state.
         logging.debug('Node: Done building node: ' + str(self))
         return self._invalid
+
+    def build_dependencies(self, ctx):
+        logging.debug('Node: Building dependencies.')
+
+        invalid = False
+        for dep in self.dependencies:
+            this = dep.build(ctx)
+            invalid = invalid or this
+
+        logging.debug('Node: Done building dependencies.')
+        return invalid
 
     ##
     ## Determine if this node is invalidated.
@@ -93,6 +113,19 @@ class Node(Validatable):
             self.builder.update(ctx)
 
         logging.debug('Node: Done updating node: ' + str(self))
+
+    def scan(self, ctx, bldr):
+        logging.debug('Node: Scanning.')
+        if not self._done_scan:
+            if self.scanner is not None:
+                logging.debug('Node: Using scanner: ' + str(self.scanner.__class__))
+                with open(str(self), 'r') as src_file:
+                    data = src_file.read()
+                new_deps = list(self.scanner.find_all(self, data, bldr))
+                logging.debug('Node: New dependencies: ' + str(new_deps))
+                self.dependencies.extend(new_deps)
+                self._new_crc = self._crc32(data)
+        logging.debug('Node: Done scanning.')
 
     def update_source_crcs(self, ctx):
         if self.builder:

@@ -90,13 +90,21 @@ class Rule(object):
     ##
     ## Scan for files.
     ##
-    def scan(self, ctx):
+    def find_sources(self, ctx):
         logging.debug('Rule: Looking at source %s'%repr(self.source))
 
         # If our source is a string then locate any matching files.
         if isinstance(self.source, basestring):
             files = self.match_sources(self.source)
-            self._src_nodes = [File(f) for f in files]
+            self._src_nodes = [ctx.file(f) for f in files]
+
+    def scan(self, ctx):
+        logging.debug('Rule: Scanning for dependencies.')
+        for srcs, bldr, dsts in self.productions:
+            for src in srcs:
+                logging.debug('Rule: Scanning: ' + str(src))
+                src.scan(ctx, bldr)
+        logging.debug('Rule: Done scanning for dependencies.')
 
     ##
     ## Expand products. Rules begin with no products defined.
