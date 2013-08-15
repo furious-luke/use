@@ -684,12 +684,13 @@ class Package(object):
     ##
     ##
     def parse_arguments(self, args):
-        name = self.name.lower()
+        name = self.option_name
 
         # Get the arguments.
         base = getattr(args, name + '-dir', None)
+        bin_dir = getattr(args, name + '-bin-dir', None)
         inc_dir = getattr(args, name + '-inc-dir', None)
-        lin_dir = getattr(args, name + '-lib-dir', None)
+        lib_dir = getattr(args, name + '-lib-dir', None)
 
     def _get_attr(self, inst, attr, default=None):
         val = getattr(inst, attr, None)
