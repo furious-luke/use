@@ -6,8 +6,12 @@ class cxx_compiler(use.Package):
     option_name = 'cxx'
     sub_packages = ['gxx', 'clangxx']
 
-    def resolve(self):
+    def iter_sub_packages(self):
 
-        # If we're building on Darwin, favor clang.
+        # If we're building on Darwin, favor clang ahead of
+        # GNU gcc or any other gcc.
         if platform.os_name == 'darwin':
-            pass
+            yield self._sub_pkg_map['clangxx']
+            for n in cxx_compiler.sub_packages:
+                if n != 'clangxx':
+                    yield self._sub_pkg_map[n]

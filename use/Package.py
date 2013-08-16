@@ -468,8 +468,19 @@ class Package(object):
         self.option_name = self.option_name if hasattr(self, 'option_name') else self.name.lower()
         self.features = {} # must come before versions
         self.versions = [v(self) for v in self.versions] if hasattr(self, 'versions') else []
-        self.sub_packages = [ctx.load_package(n, False) for n in self.sub_packages] if hasattr(self, 'sub_packages') else []
         self._opts = OptionParser()
+
+        # Setup sub-packages.
+        if hasattr(self, 'sub_packages'):
+            pkgs = []
+            self._sub_pkg_map = {}
+            for sub in self.sub_packages:
+                cur = ctx.load_package(sub, False)
+                pkgs.append(cur)
+                self._sub_pkg_map[sub] = cur
+            self.sub_packages = pkgs
+        else:
+            self.sub_packages = []
 
     ##
     ## Packages use their class type for comparison. This is
@@ -496,9 +507,18 @@ class Package(object):
         return False
 
     def iter_installations(self):
-        for ver in self.versions:
+        for ver in self.iter_versions():
             for inst in ver.installations:
                 yield inst
+        for sub in self.iter_sub_packages():
+            for inst in sub.iter_installations():
+                yield inst
+
+    def iter_versions(self):
+        return iter(self.versions)
+
+    def iter_sub_packages(self):
+        return iter(self.sub_packages)
 
     def add_feature(self, ftr):
         self.features.setdefault(ftr.name, {})[ftr.version] = ftr

@@ -70,32 +70,14 @@ class Resolver(Node):
 
         # Get the first installation.
         sel = None
-        for ver in pkg.versions:
-            for inst in ver.installations:
-                sel = inst
-                break
-            if sel is not None:
-                break
+        for inst in pkg.iter_installations():
+            sel = inst
+            break
 
         # Handle no results.
         if sel is None:
-
-            # If this is a meta package, scan sub-packages.
-            if pkg.sub_packages:
-                sel = self.meta(pkg)
-            elif fail:
+            if fail:
                 sys.stdout.write('\n    Failed to resolve "' + pkg.name + '".\n')
                 sys.exit(1)
-
-        return sel
-
-    def meta(self, pkg):
-
-        # Accept the first valid result.
-        sel = None
-        for sub in pkg.sub_packages:
-            sel = self.check_package(sub, False)
-            if sel is not None:
-                break
 
         return sel
