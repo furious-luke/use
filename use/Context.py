@@ -298,6 +298,11 @@ class Context(object):
             opts = self.new_options(**kwargs)
         use = Use(pkg, opts, cond)
         self.uses.append(use)
+
+        # Before returning, create any dependencies and combine them
+        # into a single +'d use.
+        for dep in 
+
         return use
 
     def new_rule(self, src, use, **kwargs):

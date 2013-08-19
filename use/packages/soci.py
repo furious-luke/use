@@ -13,7 +13,7 @@ class Default(use.Version):
 
 class soci(use.Package):
     versions = [Default]
-    download_dependencies = ['cmake']
+    # optional_dependencies = ['cmake']
     url = 'http://downloads.sourceforge.net/project/soci/soci/soci-3.1.0/soci-3.1.0.zip'
 
     def build_handler(self):

@@ -58,6 +58,12 @@ class Installation(Node):
     def library_dirs(self):
         return self.location.library_dirs if self.location is not None else []
 
+    def iter_dependencies(self):
+        for dep in self.version.package.dependencies:
+            yield dep
+        for dep in self.version.dependences:
+            yield dep
+
     ##
     ## Locate any features described by the version.
     ##
@@ -70,7 +76,7 @@ class Installation(Node):
     ## Create productions for nodes.
     ##
     def expand(self, nodes, use_options={}, rule_options={}):
-        return self.version.expand(nodes, self, use_options, rule_options)
+        prods = self.version.expand(nodes, self, use_options, rule_options)
 
     ##
     ## Apply this package. An option dictionary will be modified to
@@ -137,6 +143,7 @@ class Version(object):
         self.package = package
         self.installations = []
         self.url = getattr(self, 'url', None)
+        self.dependencies = [package.ctx.new_use(d) for d in (self.dependencies if hasattr(self, 'dependencies') else [])]
 
         # Set my version name.
         if not hasattr(self, 'version'):
@@ -178,6 +185,17 @@ class Version(object):
         for inst in self.installations:
             text.append(str(inst))
         return self.version + '<' + ', '.join(text) + '>'
+
+    def iter_dependencies(self):
+        done = set()
+        for dep in self.dependencies:
+            done.add(dep.package.__class__)
+            yield dep
+        for ftr in self.features:
+            for dep in ftr.iter_dependencies():
+                if dep.package.__class__ not in done:
+                    done.add(dep.package.__class__)
+                    yield dep
 
     ##
     ## Search for locations.
@@ -496,6 +514,7 @@ class Package(object):
         self.features = {} # must come before versions
         self.versions = [v(self) for v in self.versions] if hasattr(self, 'versions') else []
         self._opts = OptionParser()
+        self.dependencies = [package.ctx.new_use(d) for d in (self.dependencies if hasattr(self, 'dependencies') else [])]
 
         # Setup sub-packages.
         if hasattr(self, 'sub_packages'):
@@ -555,6 +574,17 @@ class Package(object):
 
     def iter_sub_packages(self):
         return iter(self.sub_packages)
+
+    def iter_dependencies(self):
+        done = set()
+        for dep in self.dependencies:
+            done.add(dep.package.__class__)
+            yield dep
+        for ver in self.iter_versions:
+            for dep in ver.iter_dependencies():
+                if dep.package.__class__ not in done:
+                    done.add(dep.package.__class__)
+                    yield dep
 
     def add_feature(self, ftr):
         self.features.setdefault(ftr.name, {})[ftr.version] = ftr

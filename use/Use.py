@@ -87,12 +87,14 @@ class Use(Node):
         return self.selected.options().make_options_dict(options)
 
     def apply(self, prods, options={}):
+        if self.condition is not None and not bool(self.condition):
+            return None
         self.selected.apply(prods, self.options, options)
 
     def expand(self, nodes, options={}):
         if self.condition is not None and not bool(self.condition):
             return None
-        return self.selected.expand(nodes, self.options, options)
+        prods = self.selected.expand(nodes, self.options, options)
 
 ##
 ##
