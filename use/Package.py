@@ -5,6 +5,7 @@ from .Builder import Builder
 from .Platform import platform
 from .Location import Location
 from .Options import OptionParser
+from .Installer import Installer
 from .conv import to_list
 from .utils import strip_missing, make_dirs
 
@@ -47,15 +48,15 @@ class Installation(Node):
 
     @property
     def binary_dirs(self):
-        return self.location.binary_dirs
+        return self.location.binary_dirs if self.location is not None else []
 
     @property
     def header_dirs(self):
-        return self.location.header_dirs
+        return self.location.header_dirs if self.location is not None else []
 
     @property
     def library_dirs(self):
-        return self.location.library_dirs
+        return self.location.library_dirs if self.location is not None else []
 
     ##
     ## Locate any features described by the version.
@@ -248,8 +249,22 @@ class Version(object):
     ## system locations.
     ##
     def iter_locations(self):
-        for loc in platform.iter_locations(self.patterns):
-            yield loc
+
+        # Check if the user supplied locations.
+        ctx = self.package.ctx
+        name = self.package.option_name
+        base_dir = getattr(ctx.arguments, name + '-dir', None)
+        bin_dir = getattr(ctx.arguments, name + '-bin-dir', None)
+        inc_dir = getattr(ctx.arguments, name + '-inc-dir', None)
+        lib_dir = getattr(ctx.arguments, name + '-lib-dir', None)
+        if base_dir or bin_dir or inc_dir or lib_dir:
+            for loc in platform.iter_base_locations(base_dir, bin_dir, inc_dir, lib_dir):
+                yield loc
+
+        # Otherwise use generated locations.
+        else:
+            for loc in platform.iter_locations(self.patterns):
+                yield loc
 
     ##
     ## Reduce location to canonical form. Use this to determine
@@ -290,6 +305,18 @@ class Version(object):
     ##
     def harvest(self, inst):
         pass
+
+    def add_potential_location(self, loc):
+
+        # Don't add anything if we've been given a specific location.
+        ctx = self.package.ctx
+        name = self.package.option_name
+        base_dir = getattr(ctx.arguments, name + '-dir', None)
+        bin_dir = getattr(ctx.arguments, name + '-bin-dir', None)
+        inc_dir = getattr(ctx.arguments, name + '-inc-dir', None)
+        lib_dir = getattr(ctx.arguments, name + '-lib-dir', None)
+        if not (base_dir or inc_dir or lib_dir):
+            self._potential_locations.append(loc)
 
     ##
     ## Check locations for validity. The search method will find locations that
@@ -482,6 +509,14 @@ class Package(object):
         else:
             self.sub_packages = []
 
+    @property
+    def url(self):
+        for ver in self.iter_versions():
+            url = getattr(ver, 'url', None)
+            if url is not None:
+                return url
+        return None
+
     ##
     ## Packages use their class type for comparison. This is
     ## to make sure only one exists in the graph at any time.
@@ -510,12 +545,13 @@ class Package(object):
         for ver in self.iter_versions():
             for inst in ver.installations:
                 yield inst
-        for sub in self.iter_sub_packages():
-            for inst in sub.iter_installations():
-                yield inst
 
     def iter_versions(self):
-        return iter(self.versions)
+        for ver in self.versions:
+            yield ver
+        for sub in self.iter_sub_packages():
+            for ver in sub.iter_versions():
+                yield ver
 
     def iter_sub_packages(self):
         return iter(self.sub_packages)
@@ -711,6 +747,73 @@ class Package(object):
         bin_dir = getattr(args, name + '-bin-dir', None)
         inc_dir = getattr(args, name + '-inc-dir', None)
         lib_dir = getattr(args, name + '-lib-dir', None)
+        dl = getattr(args, name + '-download', None)
+        all_dl = getattr(args, 'download_all', None)
+
+        # Check for silly arguments.
+        if (dl or all_dl) and (base or bin_dir or inc_dir or lib_dir):
+            print 'Error: Can\'t specify the download flag and also package location flags.'
+            self.ctx.exit(1)
+
+    def check_download(self):
+        if getattr(self.ctx.arguments, self.option_name + '-download', None):
+            self.download()
+
+    def download(self):
+        sys.stdout.write('    ' + self.name + '\n')
+        install = Installer()
+        src_dir = os.path.join('.external', 'src')
+        make_dirs(src_dir)
+
+        # Setup the filename and build directory name and distination directory.
+        filename = self.option_name + self.url[self.url.rfind('/') + 1:]
+        build_dir = self.option_name.lower()
+        dst_dir = os.path.abspath(os.path.join('.external', self.option_name))
+
+        # Change to the source directory.
+        old_dir = os.getcwd()
+        os.chdir(src_dir)
+
+        # Download if the file is not already available.
+        sys.stdout.write('      Downloading... ')
+        sys.stdout.flush()
+        if not os.path.exists(filename):
+            install.download_package(self.url, filename)
+            sys.stdout.write('done.\n')
+        else:
+            sys.stdout.write('cached.\n')
+
+        # Unpack if there is not already a build directory by the same name.
+        if not os.path.exists(build_dir):
+            install.unpack_package(filename, build_dir)
+
+        # Move into the build directory. Most archives will place themselves
+        # in a single directory which we should then move into.
+        os.chdir(build_dir)
+        entries = os.listdir('.')
+        if len(entries) == 1:
+            os.chdir(entries[0])
+
+        # Build the package.
+        sys.stdout.write('      Building... ')
+        sys.stdout.flush()
+        if not os.path.exists('use_build_success'):
+            if not install.build(self, dst_dir):
+                sys.stdout.write('failed.\n')
+                self.ctx.exit(1)
+            else:
+                sys.stdout.write('done.\n')
+        else:
+            sys.stdout.write('cached.\n')
+
+        # Set the base directory and return to project root.
+        setattr(self.ctx.arguments, self.option_name + '-dir', dst_dir)
+        os.chdir(old_dir)
+
+    def build_handler(self):
+        return ['./configure --prefix={prefix}',
+                'make',
+                'make install']
 
     def _get_attr(self, inst, attr, default=None):
         val = getattr(inst, attr, None)

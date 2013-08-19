@@ -4,9 +4,9 @@ class Location(object):
 
     def __init__(self, base, bin_dirs, hdr_dirs, lib_dirs):
         self.base = base
-        self.binary_dirs = list(self._iter_dirs(bin_dirs))
-        self.header_dirs = list(self._iter_dirs(hdr_dirs))
-        self.library_dirs = list(self._iter_dirs(lib_dirs))
+        self.binary_dirs = list(self._iter_dirs(bin_dirs)) if bin_dirs is not None else []
+        self.header_dirs = list(self._iter_dirs(hdr_dirs)) if hdr_dirs is not None else []
+        self.library_dirs = list(self._iter_dirs(lib_dirs)) if lib_dirs is not None else []
 
     def __eq__(self, op):
         if self.base != op.base:

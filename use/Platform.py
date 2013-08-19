@@ -1,4 +1,4 @@
-import os, platform, sys
+import os, platform, sys, glob
 from .Location import Location
 from .conv import to_list
 from .utils import strip_missing, run_command
@@ -20,19 +20,22 @@ class Platform(object):
     def iter_locations(self, patterns=[]):
         patterns = to_list(patterns)
         for base in self.base_dirs:
-            for bin_dirs in self.binary_sub_dirs:
-                for hdr_dirs in self.header_sub_dirs:
-                    for lib_dirs in self.library_sub_dirs:
-                        yield Location(base, bin_dirs, hdr_dirs, lib_dirs)
+            for loc in self.iter_base_locations(base):
+                yield loc
         for sd in self.search_dirs:
             for pattern in patterns:
-                # TODO: Make this a node.
-                ec, stdout, stderr = run_command('find ' + sd + ' -type d -iname "' + pattern + '"')
-                for base in stdout.splitlines():
-                    for bin_dirs in self.binary_sub_dirs:
-                        for hdr_dirs in self.header_sub_dirs:
-                            for lib_dirs in self.library_sub_dirs:
-                                yield Location(base, bin_dirs, hdr_dirs, lib_dirs)
+                for base in glob.iglob(os.path.join(sd, pattern)):
+                    for loc in self.iter_base_locations(base):
+                        yield loc
+
+    def iter_base_locations(self, base_dir, bin_dir=None, hdr_dir=None, lib_dir=None):
+        bin_sub_dirs = to_list(bin_dir) if bin_dir is not None else self.binary_sub_dirs
+        hdr_sub_dirs = to_list(hdr_dir) if hdr_dir is not None else self.header_sub_dirs
+        lib_sub_dirs = to_list(lib_dir) if lib_dir is not None else self.library_sub_dirs
+        for bin_dirs in bin_sub_dirs:
+            for hdr_dirs in hdr_sub_dirs:
+                for lib_dirs in lib_sub_dirs:
+                    yield Location(base_dir, bin_dirs, hdr_dirs, lib_dirs)
 
     def make_static_library(self, name):
         return os.path.join(os.path.dirname(name), self._static_lib_str.format(name=os.path.basename(name)))
@@ -58,7 +61,7 @@ class Platform(object):
 
     def _unix(self):
         self.base_dirs = strip_missing(['/usr', '/opt', '/opt/local'])
-        self.search_dirs = strip_missing(['/usr/local', '/opt/local', os.environ['HOME']])
+        self.search_dirs = strip_missing(['/usr/local', '/opt/local', os.environ['HOME'], os.path.join(os.environ['HOME'], 'soft')])
         self.binary_sub_dirs = [['bin']]
         self.header_sub_dirs = [['include']]
         self.library_sub_dirs = [['lib'], ['lib64']]

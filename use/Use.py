@@ -1,6 +1,5 @@
 import copy
 from .Node import Node
-from .Resolver import Resolver
 from .Argument import ArgumentCheck
 from .utils import load_class, getarg
 
@@ -15,6 +14,8 @@ class Use(Node):
         self.condition = cond
         self.options = options
         self.selected = None
+        self.parents = []
+        self._found = False
 
     def __eq__(self, op):
         if self.package != op.package:
@@ -47,13 +48,19 @@ class Use(Node):
         return text
 
     def __add__(self, op):
-        return UseGroup(self, op, 'add')
+        grp = UseGroup(self, op, 'add')
+        self.parents.append(grp)
+        return grp
 
     def __and__(self, op):
-        return UseGroup(self, op, 'and')
+        grp = UseGroup(self, op, 'and')
+        self.parents.append(grp)
+        return grp
 
     def __or__(self, op):
-        return UseGroup(self, op, 'or')
+        grp = UseGroup(self, op, 'or')
+        self.parents.append(grp)
+        return grp
 
     @property
     def found(self):
@@ -96,6 +103,8 @@ class UseGroup(object):
         self.left = left
         self.right = right
         self.op = op
+        self.parents = []
+        self._found = False
 
     def __eq__(self, op):
         if type(self) != type(op):
@@ -106,13 +115,19 @@ class UseGroup(object):
         return not self.__eq__(op)
 
     def __add__(self, op):
-        return UseGroup(self, op, 'add')
+        grp = UseGroup(self, op, 'add')
+        self.parents.append(grp)
+        return grp
 
     def __and__(self, op):
-        return UseGroup(self, op, 'and')
+        grp = UseGroup(self, op, 'and')
+        self.parents.append(grp)
+        return grp
 
     def __or__(self, op):
-        return UseGroup(self, op, 'or')
+        grp = UseGroup(self, op, 'or')
+        self.parents.append(grp)
+        return grp
 
     @property
     def found(self):
@@ -171,6 +186,6 @@ class UseGroup(object):
         elif self.op == 'and':
             left_prods = self.left.expand(nodes, options) if self.left.enabled else []
             right_prods = self.right.expand(nodes, options) if self.right.enabled else []
-            prods = left_prods + right_prods
+            prods = (left_prods if left_prods is not None else []) + (right_prods if right_prods is not None else [])
 
         return prods

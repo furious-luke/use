@@ -1,5 +1,6 @@
 import sys
 from .Node import Node
+from .Use import UseGroup
 import logging
 
 ##
@@ -33,9 +34,25 @@ class Resolver(Node):
         from .Feature import FeatureUse
         logging.debug('Resolving package installations.')
 
-        # Just use the first installation of every package.
-        for use in ctx.uses:
-            self.check_use(use)
+        # Build a set of use roots.
+        roots = set()
+        for rule in ctx.rules:
+            self.find_roots(rule.use, roots)
+
+        # Traverse each tree and check
+        for root in roots:
+            if not self.walk(root):
+                missing = self.find_missing(root)
+                sys.stdout.write('\n    Failed to resolve packages.')
+                if len(missing) > 1:
+                    sys.stdout.write(' Need at least one of the following:')
+                for use in missing:
+                    sys.stdout.write('\n      %s\n'%use.package.name)
+                sys.exit(1)
+
+        # # Just use the first installation of every package.
+        # for use in ctx.uses:
+        #     self.check_use(use)
 
         # Just use the first installation of every package.
         for use in ctx.uses:
@@ -65,6 +82,7 @@ class Resolver(Node):
         # Don't process feature uses.
         if not isinstance(use, FeatureUse):
             use.selected = self.check_package(use.package)
+            use._found = use.selected is not None
 
     def check_package(self, pkg, fail=True):
 
@@ -74,10 +92,57 @@ class Resolver(Node):
             sel = inst
             break
 
-        # Handle no results.
-        if sel is None:
-            if fail:
-                sys.stdout.write('\n    Failed to resolve "' + pkg.name + '".\n')
-                sys.exit(1)
+        # # Handle no results.
+        # if sel is None:
+        #     if fail:
+        #         sys.stdout.write('\n    Failed to resolve "' + pkg.name + '".\n')
+        #         sys.exit(1);
 
         return sel
+
+    def find_roots(self, use, roots):
+        if not use.parents:
+            roots.add(use)
+        for par in use.parents:
+            self.find_roots(par, roots)
+
+    def walk(self, use):
+        from .Feature import FeatureUse
+        if isinstance(use, UseGroup):
+            have_left = self.walk(use.left) if use.left is not None else False
+            have_right = self.walk(use.right) if use.right is not None else False
+            if not have_left:
+                if use.op == 'or':
+                    use._found = have_right
+                    return have_right
+                else:
+                    use._found = False
+                    return False
+            use._found = have_right
+            return have_right
+        elif isinstance(use, FeatureUse):
+            self.check_use(use.use)
+            return use.use.selected is not None
+        else:
+            self.check_use(use)
+            return use.selected is not None
+
+    def find_missing(self, use):
+        from .Feature import FeatureUse
+        missing = []
+        if not isinstance(use, FeatureUse):
+            if not use._found:
+                if isinstance(use, UseGroup):
+                    if use.op == 'or':
+                        missing.extend(self.find_missing(use.left))
+                        missing.extend(self.find_missing(use.right))
+                    else:
+                        missing.extend(self.find_missing(use.left))
+                        if not missing:
+                            missing.extend(self.find_missing(use.right))
+                else:
+                    missing.append(use)
+        else:
+            if not use.use._found:
+                missing.append(use)
+        return missing

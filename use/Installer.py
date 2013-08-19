@@ -1,11 +1,11 @@
-import os
+import os, subprocess, shlex, shutil
 
 class Installer(object):
 
     def __init__(self):
         pass
 
-    def download_package(url, path):
+    def download_package(self, url, path):
 
         # Remove existing file.
         if os.path.exists(path):
@@ -19,10 +19,10 @@ class Installer(object):
         except:
             return False
 
-    def unpack_package(src_path, dst_path):
+    def unpack_package(self, src_path, dst_path):
 
         # Remove the destination entirely.
-        if os.path.exists(dst_path)
+        if os.path.exists(dst_path):
             shutil.rmtree(dst_path)
 
         if os.path.splitext(src_path)[1] == '.zip':
@@ -43,7 +43,7 @@ class Installer(object):
                 shutil.rmtree(dst_path, True)
                 return False
 
-    def auto_build(self, dst_path):
+    def build(self, pkg, dst_path):
 
         # Remove any existing file used to indicate successful builds.
         if os.path.exists('use_build_success'):
@@ -54,58 +54,49 @@ class Installer(object):
             shutil.rmtree(dst_path)
 
         # Hunt down the correct build handler.
-        handler = self.get_build_handler()
+        handler = pkg.build_handler()
         if handler is None:
             return False
 
         # Make a file to log stdout from the commands.
         with open('stdout.log', 'w') as stdout_log:
 
-        # Process each command in turn.
-        for cmd in handler:
+            # Process each command in turn.
+            for cmd in handler:
 
-            # It's possible to have a tuple, indicating a function and arguments.
-            if isinstance(cmd, tuple):
-                ctx.Log("Command is a Python function\n")
-                func = cmd[0]
-                args = cmd[1:]
+                # It's possible to have a tuple, indicating a function and arguments.
+                if isinstance(cmd, tuple):
+                    ctx.Log("Command is a Python function\n")
+                    func = cmd[0]
+                    args = cmd[1:]
 
-                # Perform substitutions.
-                args = [ctx.env.subst(a.replace('${PREFIX}', dst_path)) for a in args]
+                    # Perform substitutions.
+                    args = [ctx.env.subst(a.replace('${PREFIX}', dst_path)) for a in args]
 
-                # Call the function.
-                func(*args)
+                    # Call the function.
+                    func(*args)
 
-            else:
+                else:
 
-                # If the first character in a command is an "!", then it means we allow
-                # errors from this command.
-                allow_errors = False
-                if cmd[0] == '!':
-                    allow_errors = True
-                    cmd = cmd[1:]
+                    # If the first character in a command is an "!", then it means we allow
+                    # errors from this command.
+                    allow_errors = False
+                    if cmd[0] == '!':
+                        allow_errors = True
+                        cmd = cmd[1:]
 
-                # Perform substitutions.
-                cmd = cmd.replace('${PREFIX}', dst_path)
-                cmd = ctx.env.subst(cmd)
-                ctx.Log(cmd + "\n")
+                    # Perform substitutions.
+                    cmd = cmd.format(prefix=dst_path)
 
-                try:
-                    subprocess.check_call(shlex.split(cmd), stdout=stdout_log, stderr=subprocess.STDOUT)
-                except:
-                    if not allow_errors:
-                        stdout_log.close()
-                        sys.stdout.write('failed.\n')
-                        ctx.Log("Command failed\n")
-                        return False
-
-        # Don't forget to close the log.
-        stdout_log.close()
+                    try:
+                        subprocess.check_call(shlex.split(cmd), stdout=stdout_log, stderr=subprocess.STDOUT)
+                    except:
+                        if not allow_errors:
+                            return False
 
         # If it all seemed to work, write a dummy file to indicate this package has been built.
-        success = open('scons_build_success', 'w')
+        success = open('use_build_success', 'w')
         success.write(' ')
         success.close()
 
-        sys.stdout.write('done.\n')
         return True

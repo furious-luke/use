@@ -29,6 +29,7 @@ class Context(object):
         self.parser = argparse.ArgumentParser('"Use": Software configuration and build.')
         self.parser.add_argument('targets', nargs='*', help='Specify build targets.')
         self.parser.add_argument('-s', dest='show_config', action='store_true', help='Show current configuration.')
+        self.parser.add_argument('--download-all', dest='download_all', action='store_true', help='Download and install all dependencies.')
         self.arguments = None
         self._def_args = {}
 
@@ -101,6 +102,10 @@ class Context(object):
             if rule.options is not None:
                 rule.options.parse(self)
 
+        # Have packages handle user arguments.
+        for pkg in self.packages:
+            pkg.parse_arguments(self.arguments)
+
     def argument(self, name):
         val = getattr(self.arguments, name, None)
         if val is None:
@@ -119,7 +124,13 @@ class Context(object):
         sys.stdout.write('Configuring...\n')
         sys.stdout.write('  Packages to be configured:\n')
         for pkg in self.packages:
-            sys.stdout.write('    ' + pkg.name + '\n')
+            if pkg.explicit:
+                sys.stdout.write('    ' + pkg.name + '\n')
+
+        # Check for downloads.
+        sys.stdout.write('  Installing packages...\n')
+        for pkg in self.packages:
+            pkg.check_download()
 
         # Repeat the 'search' operation on each package until all return
         # True, indicating there are no new potential locations.

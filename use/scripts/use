@@ -28,6 +28,10 @@ ctx = Context()
 
 # Insert all the global methods and such I want
 # available to the user.
+identity = ctx.new_use('identity')
+identity.package.explicit = False
+files = ctx.new_use('files')
+files.package.explicit = False
 globals_dict = {
 
     # Use shortcuts to insert 
@@ -37,6 +41,8 @@ globals_dict = {
     'use': ctx.new_use,
     'rule': ctx.new_rule,
     'targets': Argument('targets', ctx),
+    'files': files,
+    'identity': identity,
 }
 
 # Try to execute the build script.
