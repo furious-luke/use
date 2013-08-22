@@ -15,3 +15,7 @@ class cxx_compiler(use.Package):
             for n in cxx_compiler.sub_packages:
                 if n != 'clangxx':
                     yield self._sub_pkg_map[n]
+
+        else:
+            for n in super(cxx_compiler, self).iter_sub_packages():
+                yield n

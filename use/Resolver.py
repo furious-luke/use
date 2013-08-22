@@ -32,7 +32,7 @@ class Resolver(Node):
     ##
     def __call__(self, ctx):
         from .Feature import FeatureUse
-        logging.debug('Resolving package installations.')
+        logging.debug('Resolver: Resolving package installations.')
 
         # Build a set of use roots.
         roots = set()
@@ -41,6 +41,7 @@ class Resolver(Node):
 
         # Traverse each tree and check
         for root in roots:
+            logging.debug('Resolver: Starting at root: ' + str(root))
             if not self.walk(root):
                 missing = self.find_missing(root)
                 sys.stdout.write('\n    Failed to resolve packages.')
@@ -76,8 +77,11 @@ class Resolver(Node):
                     sys.stdout.write('\n    Failed to resolve "' + use.ftr + '".')
                     sys.exit(1)
 
+        logging.debug('Resolver: Done resolving package installations.')
+
     def check_use(self, use):
         from .Feature import FeatureUse
+        logging.debug('Resolver: Checking Use.')
 
         # Don't process feature uses.
         if not isinstance(use, FeatureUse):
@@ -85,11 +89,13 @@ class Resolver(Node):
             use._found = use.selected is not None
 
     def check_package(self, pkg, fail=True):
+        logging.debug('Resolver: Checking package.')
 
         # Get the first installation.
         sel = None
         for inst in pkg.iter_installations():
             sel = inst
+            logging.debug('Resolver: Found installation: ' + str(inst))
             break
 
         # # Handle no results.
@@ -108,7 +114,9 @@ class Resolver(Node):
 
     def walk(self, use):
         from .Feature import FeatureUse
+        logging.debug('Resolver: Walking: ' + str(use))
         if isinstance(use, UseGroup):
+            logging.debug('Resolver: Have UseGroup.')
             have_left = self.walk(use.left) if use.left is not None else False
             have_right = self.walk(use.right) if use.right is not None else False
             if not have_left:
@@ -121,9 +129,11 @@ class Resolver(Node):
             use._found = have_right
             return have_right
         elif isinstance(use, FeatureUse):
+            logging.debug('Resolver: Have FeatureUse.')
             self.check_use(use.use)
             return use.use.selected is not None
         else:
+            logging.debug('Resolver: Have Use.')
             self.check_use(use)
             return use.selected is not None
 

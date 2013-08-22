@@ -6,6 +6,7 @@ from .Platform import platform
 from .Location import Location
 from .Options import OptionParser
 from .Installer import Installer
+from .apply import apply
 from .conv import to_list
 from .utils import strip_missing, make_dirs
 
@@ -87,48 +88,10 @@ class Installation(Node):
     ## have the contents of this package applied to it.
     ##
     def apply(self, prods, use_options={}, rule_options={}):
-        for prod in prods:
-            bldr = prod[1]
-            opts = bldr.options
-            self.append_headers(opts)
-            if 'compile' not in opts:
-                self.append_libraries(opts)
-                if 'shared_lib' in opts:
-                    self.append_rpaths(opts)
+        apply(self, prods, use_options, rule_options)
 
     def actions(self, *args, **kwargs):
         return self.version.actions(self, *args, **kwargs)
-
-    def append_headers(self, opts):
-        hdr_dirs = self.header_dirs
-        hdrs = self.headers
-        if hdr_dirs:
-            dst = opts.setdefault('header_dirs', [])
-            for d in hdr_dirs:
-                if d not in dst and d not in platform.system_header_dirs:
-                    dst.append(d)
-
-    def append_libraries(self, opts):
-        lib_dirs = self.library_dirs
-        libs = self.libraries
-        if lib_dirs:
-            dst = opts.setdefault('library_dirs', [])
-            for d in lib_dirs:
-                if d not in dst and d not in platform.system_library_dirs:
-                    dst.append(d)
-        if libs:
-            dst = opts.setdefault('libraries', [])
-            for h in libs:
-                if h not in dst:
-                    dst.append(h)
-
-    def append_rpaths(self, opts):
-        lib_dirs = self.library_dirs
-        if lib_dirs:
-            dst = opts.setdefault('rpath_dirs', [])
-            for d in lib_dirs:
-                if d not in dst and d not in platform.system_library_dirs:
-                    dst.append(d)
 
     def feature(self, name):
         return self._ftr_map.get(name)
@@ -518,7 +481,7 @@ class Package(object):
         self.features = {} # must come before versions
         self.versions = [v(self) for v in self.versions] if hasattr(self, 'versions') else []
         self._opts = OptionParser()
-        self.dependencies = [package.ctx.new_use(d) for d in (self.dependencies if hasattr(self, 'dependencies') else [])]
+        self.dependencies = [self.ctx.load_package(d, True) for d in (self.dependencies if hasattr(self, 'dependencies') else [])]
 
         # Setup sub-packages.
         if hasattr(self, 'sub_packages'):

@@ -1,5 +1,6 @@
 from Package import Version
 from Use import Use
+from .apply import apply
 
 class Feature(Version):
 
@@ -28,7 +29,7 @@ class Feature(Version):
         return self.version.expand(nodes, self, use_options, rule_options)
 
     def apply(self, prods, use_options={}, rule_options={}):
-        pass
+        apply(self, prods, use_options, rule_options)
 
     def actions(self, node, target, opts):
         return []

@@ -60,11 +60,12 @@ class Platform(object):
         self._unix()
 
     def _unix(self):
+        mac = '-'.join([platform.machine(), 'linux', 'gnu'])
         self.base_dirs = strip_missing(['/usr', '/opt', '/opt/local'])
         self.search_dirs = strip_missing(['/usr/local', '/opt/local', os.environ['HOME'], os.path.join(os.environ['HOME'], 'soft')])
         self.binary_sub_dirs = [['bin']]
         self.header_sub_dirs = [['include']]
-        self.library_sub_dirs = [['lib'], ['lib64']]
+        self.library_sub_dirs = [['lib', 'lib/' + mac], ['lib64', 'lib64/' + mac]]
         self.system_header_dirs = ['/usr/include']
         self.system_library_dirs = ['/usr/lib', '/usr/lib64']
 

@@ -90,11 +90,18 @@ class Use(Node):
         if self.condition is not None and not bool(self.condition):
             return None
         self.selected.apply(prods, self.options, options)
+        self.apply_features(prods, options)
 
     def expand(self, nodes, options={}):
         if self.condition is not None and not bool(self.condition):
             return None
-        return self.selected.expand(nodes, self.options, options)
+        prods = self.selected.expand(nodes, self.options, options)
+        self.apply_features(prods, options)
+        return prods
+
+    def apply_features(self, prods, rule_options={}):
+        for ftr in self.selected.features:
+            ftr.apply(prods, self.options, rule_options)
 
 ##
 ##

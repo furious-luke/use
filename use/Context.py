@@ -170,6 +170,11 @@ class Context(object):
         self.save()
 
         sys.stdout.write('  Success.\n')
+        sys.stdout.write('  Configuration details:\n')
+        for pkg in self.packages:
+            found = len(list(pkg.iter_installations())) > 0
+            if found and pkg.explicit:
+                sys.stdout.write('    %s\n'%pkg.name)
 
     ##
     ##
@@ -245,10 +250,11 @@ class Context(object):
             if deps and use.parents:
                 logging.debug('Context: Augmenting ' + str(use))
                 new_use = use
+                parents = list(use.parents)
                 for dep in deps:
                     logging.debug('Context: Adding ' + dep.name)
                     new_use = new_use + Use(dep, None, use.condition)
-                for par in use.parents:
+                for par in parents:
                     if par.left is use:
                         par.left = new_use
                     else:
