@@ -94,7 +94,7 @@ class Use(Node):
     def expand(self, nodes, options={}):
         if self.condition is not None and not bool(self.condition):
             return None
-        prods = self.selected.expand(nodes, self.options, options)
+        return self.selected.expand(nodes, self.options, options)
 
 ##
 ##

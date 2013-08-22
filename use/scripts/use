@@ -50,6 +50,9 @@ locals_dict = {}
 # exec(open(script).read(), globals(), locals_dict)
 execfile(script, globals_dict, locals_dict)
 
+# Augment the trees.
+ctx.augment()
+
 # Handle arguments.
 ctx.parse_arguments()
 

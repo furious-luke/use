@@ -231,6 +231,47 @@ class Context(object):
         logging.debug('Context: Done scanning for dependencies.')
 
     ##
+    ## After creating all the flows we need to augment them to include
+    ## package dependencies.
+    ##
+    def augment(self):
+        logging.debug('Context: Beginning augmentation.')
+
+        # First modify all uses that are contained in a tree.
+        for use in self.uses:
+            if not isinstance(use, Use):
+                continue
+            deps = use.package.dependencies
+            if deps and use.parents:
+                logging.debug('Context: Augmenting ' + str(use))
+                new_use = use
+                for dep in deps:
+                    logging.debug('Context: Adding ' + dep.name)
+                    new_use = new_use + Use(dep, None, use.condition)
+                for par in use.parents:
+                    if par.left is use:
+                        par.left = new_use
+                    else:
+                        par.right = new_use
+
+        # Now process any uses directly connected to rules. These will not
+        # have been picked up in the last run.
+        for rule in self.rules:
+            use = rule.use
+            if not isinstance(use, Use):
+                continue
+            deps = use.package.dependencies
+            if deps:
+                logging.debug('Context: Augmenting ' + str(use))
+                new_use = use
+                for dep in deps:
+                    logging.debug('Context: Adding ' + dep.name)
+                    new_use = new_use + Use(dep, None, use.condition)
+                rule.use = new_use
+
+        logging.debug('Context: Done augmentation.')
+
+    ##
     ## Decide which targets to build.
     ##
     def find_targets(self):
@@ -298,11 +339,6 @@ class Context(object):
             opts = self.new_options(**kwargs)
         use = Use(pkg, opts, cond)
         self.uses.append(use)
-
-        # Before returning, create any dependencies and combine them
-        # into a single +'d use.
-        for dep in 
-
         return use
 
     def new_rule(self, src, use, **kwargs):

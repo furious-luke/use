@@ -101,6 +101,8 @@ class OptionParser(object):
             return opt_str.get()
         elif isinstance(opt_str, dict):
             return dict(opt_str)
+        elif opt_str is None:
+            return {}
         assert 0, 'Not implemented yet.'
 
 class OptionDict(object):

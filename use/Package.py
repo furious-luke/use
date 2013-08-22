@@ -68,15 +68,19 @@ class Installation(Node):
     ## Locate any features described by the version.
     ##
     def find_features(self):
+        logging.debug('Installation: Finding features.')
+        logging.debug('Installation: ' + self.version.package.name)
         for ftr in self.version.features:
             if ftr.check(self):
                 self.features.append(ftr)
                 self._ftr_map[ftr.name] = ftr
+                logging.debug('Installation: Found feature: ' + ftr.name)
+        logging.debug('Installation: Done finding features.')
     ##
     ## Create productions for nodes.
     ##
     def expand(self, nodes, use_options={}, rule_options={}):
-        prods = self.version.expand(nodes, self, use_options, rule_options)
+        return self.version.expand(nodes, self, use_options, rule_options)
 
     ##
     ## Apply this package. An option dictionary will be modified to
