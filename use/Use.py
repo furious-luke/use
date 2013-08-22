@@ -1,6 +1,6 @@
 import copy
 from .Node import Node
-from .Argument import ArgumentCheck
+from .Argument import ArgumentCheck, Argument
 from .utils import load_class, getarg
 
 ##
@@ -69,6 +69,10 @@ class Use(Node):
     @property
     def enabled(self):
         return self.found and (self.condition is None or bool(self.condition))
+
+    @property
+    def have(self):
+        return Argument('enabled', self.package.ctx, self)
 
     def has_packages(self):
         return True

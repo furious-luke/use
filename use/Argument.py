@@ -27,15 +27,16 @@ class Arguments(object):
 
 class Argument(object):
 
-    def __init__(self, name, ctx):
+    def __init__(self, name, ctx, use=None):
         self.name = name
         self.context = ctx
+        self.use = use
 
     def __eq__(self, op):
         return ArgumentCheck('eq', self, op)
 
     def __deepcopy__(self, memo):
-        return Argument(self.name, self.context)
+        return Argument(self.name, self.context, self.use)
 
     def __add__(self, op):
         return ArgumentCheck('add', self, op)
@@ -47,10 +48,13 @@ class Argument(object):
         return ArgumentCheck('in', self, op)
 
     def value(self):
-        return self.context.argument(self.name)
+        if self.use is None:
+            return self.context.argument(self.name)
+        else:
+            return getattr(self.use, self.name)
 
     def compare(self, op):
-        return self.name == op.name
+        return self.name == op.name and self.use == op.use
 
 class ArgumentCheck(object):
 
