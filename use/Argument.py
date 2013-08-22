@@ -1,3 +1,38 @@
+import argparse
+
+def boolean(string):
+    string = string.lower()
+    if string in ['0', 'f', 'false', 'no', 'off']:
+        return False
+    elif string in ['1', 't', 'true', 'yes', 'on']:
+        return True
+    else:
+        raise ValueError()
+
+class ConfigureAction(argparse.Action):
+    
+    def __init__(self, option_strings, dest, required=False, help=None, metavar=None, default=None):
+        strings = []
+        self.positive_strings = set()
+        self.negative_strings = set()
+        for string in option_strings:
+            assert string.startswith('--enable') or string.startswith('--with')
+            strings.append(string)
+            self.positive_strings.add(string)
+            neg_string = string.replace('--enable', '--disable')
+            neg_string = neg_string.replace('--with', '--without')
+            strings.append(neg_string)
+            self.negative_strings.add(neg_string)
+        super(ConfigureAction, self).__init__(option_strings=strings, dest=dest, nargs='?', const=None, default=default, type=boolean,
+                                              choices=None, required=required, help=help, metavar=metavar)
+
+    def __call__(self, parser, namespace, value, option_string=None):
+        if value is None:
+            value = option_string in self.positive_strings
+        elif option_string in self.negative_strings:
+            value = not value
+        setattr(namespace, self.dest, value)
+
 class Arguments(object):
 
     def __init__(self, ctx):
@@ -14,6 +49,10 @@ class Arguments(object):
                 default = False
             elif kwargs.get('action', None) == 'store_false':
                 default = True
+
+        # If the action is 'boolean' then use an augmented boolean type.
+        if kwargs.get('action', None) == 'boolean':
+            kwargs['action'] = ConfigureAction
 
         # Create the argument to get hold of destination name.
         act = self._ctx.parser.add_argument(*args, **kwargs)
