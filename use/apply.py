@@ -1,3 +1,4 @@
+import os
 from Platform import platform
 
 def apply(obj, prods, use_options={}, rule_options={}):
@@ -36,5 +37,7 @@ def append_rpaths(obj, opts):
     if lib_dirs:
         dst = opts.setdefault('rpath_dirs', [])
         for d in lib_dirs:
+            if not os.path.isabs(d):
+                d = os.path.join(os.getcwd(), d)
             if d not in dst and d not in platform.system_library_dirs:
                 dst.append(d)
