@@ -257,11 +257,29 @@ class Version(object):
     ##
     def simplify_location(self, loc):
         if not self.binaries:
-            loc.binary_dirs = []
+            rem = True
+            for ftr in self.features:
+                if ftr.binaries:
+                    rem = False
+                    break
+            if rem:
+                loc.binary_dirs = []
         if not self.headers:
-            loc.header_dirs = []
+            rem = True
+            for ftr in self.features:
+                if ftr.headers:
+                    rem = False
+                    break
+            if rem:
+                loc.header_dirs = []
         if not self.libraries:
-            loc.library_dirs = []
+            rem = True
+            for ftr in self.features:
+                if ftr.libraries:
+                    rem = False
+                    break
+            if rem:
+                loc.library_dirs = []
 
     ##
     ## Check if location matches a footprint for this version.
@@ -482,6 +500,7 @@ class Package(object):
         self.versions = [v(self) for v in self.versions] if hasattr(self, 'versions') else []
         self._opts = OptionParser()
         self.dependencies = [self.ctx.load_package(d, True) for d in (self.dependencies if hasattr(self, 'dependencies') else [])]
+        self.uses = []
 
         # Setup sub-packages.
         if hasattr(self, 'sub_packages'):

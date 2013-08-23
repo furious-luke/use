@@ -253,7 +253,13 @@ class Context(object):
                 parents = list(use.parents)
                 for dep in deps:
                     logging.debug('Context: Adding ' + dep.name)
-                    new_use = new_use + Use(dep, None, use.condition)
+
+                    # Use existing 'use' if possible.
+                    if len(dep.uses):
+                        new_use = new_use + dep.uses[0]
+                    else:
+                        new_use = new_use + Use(dep, None, use.condition)
+
                 for par in parents:
                     if par.left is use:
                         par.left = new_use
@@ -272,7 +278,13 @@ class Context(object):
                 new_use = use
                 for dep in deps:
                     logging.debug('Context: Adding ' + dep.name)
-                    new_use = new_use + Use(dep, None, use.condition)
+
+                    # Use existing 'use' if possible.
+                    if len(dep.uses):
+                        new_use = new_use + dep.uses[0]
+                    else:
+                        new_use = new_use + Use(dep, None, use.condition)
+
                 rule.use = new_use
 
         logging.debug('Context: Done augmentation.')

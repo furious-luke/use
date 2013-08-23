@@ -16,6 +16,7 @@ class Use(Node):
         self.selected = None
         self.parents = []
         self._found = False
+        self.package.uses.append(self)
 
     def __eq__(self, op):
         if self.package != op.package:

@@ -1,3 +1,4 @@
+import logging
 from Package import Version
 from Use import Use
 from .apply import apply
@@ -23,7 +24,13 @@ class Feature(Version):
     ## Check for existence of this feature.
     ##
     def check(self, inst):
-        return True
+        logging.debug('Feature: Checking ' + self.name)
+        if inst.location is not None:
+            res = self.footprint(inst.location)
+        else:
+            res = (True,)
+        logging.debug('Feature: Done checking ' + self.name)
+        return res[0]
 
     def expand(self, nodes, use_options={}, rule_options={}):
         return self.version.expand(nodes, self, use_options, rule_options)

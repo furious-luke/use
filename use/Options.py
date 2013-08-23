@@ -1,4 +1,4 @@
-import copy
+import copy, os
 from collections import OrderedDict
 from File import File
 from .Argument import ArgumentCheck, Argument
@@ -20,6 +20,7 @@ class Option(object):
                 self.name = self.long_opts[0]
         self.space = kwargs.get('space', True)
         self.text = kwargs.get('text', None)
+        self.abspath = kwargs.get('abspath', False)
 
     def __eq__(self, op):
         if isinstance(op, Option):
@@ -47,6 +48,9 @@ class Option(object):
         return str_list
 
     def _append(self, str_list, opt, val):
+        if self.abspath:
+            if not os.path.isabs(val):
+                val = os.path.join(os.getcwd(), val)
         if opt:
             if not self.space:
                 str_list.append(opt + str(val))

@@ -23,7 +23,7 @@ setup(
     license='BSD',
 
     packages=find_packages(),
-    scripts=['use/scripts/use.py', 'use/scripts/use'],
+    scripts=['use/scripts/use'],
     include_package_data=True,
     install_requires=['setuptools'],
     zip_safe=False,
