@@ -13,3 +13,4 @@ class Default(use.Version):
 
 class openmpi(use.Package):
     versions = [Default]
+    environ_name = 'MPI'

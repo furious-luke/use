@@ -21,14 +21,17 @@ class mpicc(use.Feature):
     def expand(self, *args, **kwargs):
         return self.cc.expand(*args, **kwargs)
 
+class pmpich(use.Feature):
+    libraries = ['pmpich']
+
 ##
 ##
 ##
 class Default(use.Version):
     version = 'default'
     headers = ['mpi.h']
-    libraries = ['mpich', 'pmpich']
-    features = [mpicc]
+    libraries = ['mpich']
+    features = [pmpich, mpicc]
     url = 'http://www.mcs.anl.gov/research/projects/mpich2staging/goodell/downloads/tarballs/mpich2-current.tar.gz'
 
 ##
@@ -38,3 +41,4 @@ class mpich2(use.Package):
     default_target_node = use.File
     default_builder = use.Builder
     versions = [Default]
+    environ_name = 'MPI'

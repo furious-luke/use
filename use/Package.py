@@ -246,10 +246,22 @@ class Version(object):
             for loc in platform.iter_base_locations(base_dir, bin_dir, inc_dir, lib_dir):
                 yield loc
 
-        # Otherwise use generated locations.
         else:
-            for loc in platform.iter_locations(self.patterns):
-                yield loc
+
+            # Check if there is an environment variable with an appropriate name.
+            name = self.package.environ_name
+            base_dir = os.environ.get(name + '_DIR', None)
+            if base_dir is None:
+                base_dir = os.environ.get(name + '_HOME', None)
+            if base_dir is not None:
+                for loc in platform.iter_base_locations(base_dir):
+                    yield loc
+
+            else:
+
+                # Otherwise use generated locations.
+                for loc in platform.iter_locations(self.patterns):
+                    yield loc
 
     ##
     ## Reduce location to canonical form. Use this to determine
@@ -496,6 +508,7 @@ class Package(object):
         self.explicit = explicit
         self.name = self.name if hasattr(self, 'name') else self.__class__.__name__
         self.option_name = self.option_name if hasattr(self, 'option_name') else self.name.lower()
+        self.environ_name = self.environ_name if hasattr(self, 'environ_name') else self.option_name.upper()
         self.features = {} # must come before versions
         self.versions = [v(self) for v in self.versions] if hasattr(self, 'versions') else []
         self._opts = OptionParser()

@@ -7,4 +7,4 @@ class Default(use.Version):
 
 class glut(use.Package):
     versions = [Default]
-    dependencies = ['opengl']
+    dependencies = ['glu']
