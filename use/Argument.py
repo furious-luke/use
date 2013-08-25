@@ -59,6 +59,7 @@ class Arguments(object):
 
         # Set the default.
         self._ctx._def_args[act.dest] = default
+        self._ctx._arg_map[act.dest] = act
 
         new_arg = Argument(act.dest, self._ctx)
         setattr(self, new_arg.name, new_arg)

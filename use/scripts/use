@@ -4,7 +4,7 @@
 ## The primary entry point.
 ##
 
-import os, sys, logging
+import os, sys, signal, logging
 from use.Context import Context
 from use.Platform import platform
 from use.Argument import Argument
@@ -76,6 +76,14 @@ if post_cfg and callable(post_cfg):
 
 # Find targets to build.
 ctx.find_targets()
+
+# Before building, prepare a signal handler to catch interrupts.
+def terminate(signal, frame):
+    ctx.update_node_crcs()
+    ctx.save()
+    sys.stdout.write('\nInterrupted.\n')
+    sys.exit(0)
+signal.signal(signal.SIGINT, terminate)
 
 # Build targets.
 ctx.build()

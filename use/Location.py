@@ -18,6 +18,9 @@ class Location(object):
         return True
 
     def __repr__(self):
+        return self.text().replace('\n', ', ')
+
+    def text(self, indent=0):
         text = []
         if self.base:
             text.append('base: ' + self.base)
@@ -27,7 +30,7 @@ class Location(object):
             text.append('header dirs: ' + str(self.header_dirs))
         if self.library_dirs:
             text.append('library dirs: ' + str(self.library_dirs))
-        return ', '.join(text)
+        return ('\n' + indent*' ').join(text)
 
     def _iter_dirs(self, dirs):
         for d in dirs:

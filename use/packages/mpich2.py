@@ -42,3 +42,8 @@ class mpich2(use.Package):
     default_builder = use.Builder
     versions = [Default]
     environ_name = 'MPI'
+
+    def build_handler(self):
+        return ['./configure --prefix={prefix} --enable-shared --disable-fc --disable-f77',
+                'make',
+                'make install']

@@ -26,12 +26,14 @@ class Context(object):
         self.crcs = {}
         self.src_crcs = {}
         self.old_bldrs = {}
+
+        self.arguments = None
+        self._def_args = {}
+        self._arg_map = {}
         self.parser = argparse.ArgumentParser('"Use": Software configuration and build.')
         self.parser.add_argument('targets', nargs='*', help='Specify build targets.')
         self.parser.add_argument('-s', dest='show_config', action='store_true', help='Show current configuration.')
-        self.parser.add_argument('--download-all', dest='download_all', action='store_true', help='Download and install all dependencies.')
-        self.arguments = None
-        self._def_args = {}
+        self.new_arguments()('--enable-download-all', dest='download_all', action='boolean', help='Download and install all dependencies.')
 
     def __eq__(self, op):
 
@@ -83,17 +85,6 @@ class Context(object):
                     old_ctx.arguments.__dict__[k] = v
             self.arguments = old_ctx.arguments
 
-        # If the user requested to see current configuration then
-        # do so now, unless they wished to clean.
-        if self.arguments.show_config:
-            print 'Current configuration:'
-            for k, v in self.arguments.__dict__.iteritems():
-                if k in ['show_config']:
-                    continue
-                if v is not None and (not isinstance(v, list) or len(v) > 0):
-                    print '  {} = {}'.format(k, v)
-            self.exit(False)
-
         # Parse the options now.
         for use in self.uses:
             if use.options is not None:
@@ -119,7 +110,11 @@ class Context(object):
 
         # Only continue if there is a need to reconfigure.
         if not self.needs_configure():
+            self.show_configuration(sys.stdout)
             return
+
+        # Check if we need to show configuration and dump.
+        self.show_configuration(sys.stdout)
 
         sys.stdout.write('Configuring...\n')
         sys.stdout.write('  Packages to be configured:\n')
@@ -171,10 +166,7 @@ class Context(object):
 
         sys.stdout.write('  Success.\n')
         sys.stdout.write('  Configuration details:\n')
-        for pkg in self.packages:
-            found = len(list(pkg.iter_installations())) > 0
-            if found and pkg.explicit:
-                sys.stdout.write('    %s\n'%pkg.name)
+        self.write_configuration(sys.stdout, 4)
 
     ##
     ##
@@ -413,8 +405,11 @@ class Context(object):
             del self.src_crcs[k]
 
     def update_node_crc(self, node):
-        self.crcs[repr(node)] = node.current_crc(self)
-        self.src_crcs[repr(node)] = node.current_source_crcs(self)
+
+        # Don't update the node if it has not been seen yet.
+        if node.seen:
+            self.crcs[repr(node)] = node.current_crc(self)
+            self.src_crcs[repr(node)] = node.current_source_crcs(self)
 
     ##
     ## Store context state to file.
@@ -423,10 +418,10 @@ class Context(object):
 
         # Parser won't pickle.
         parser = self.parser
-        del self.parser
-
-        # Don't save any targets.
         targets = self.arguments.targets
+        _arg_map = self._arg_map
+        del self.parser
+        del self._arg_map
         self.arguments.targets = None
 
         with open('.use.db', 'w') as out:
@@ -434,6 +429,7 @@ class Context(object):
 
         # Reset.
         self.parser = parser
+        self._arg_map = _arg_map
         self.arguments.targets = targets
 
     ##
@@ -485,3 +481,36 @@ class Context(object):
 
     def file(self, *args, **kwargs):
         return self.node(File, *args, **kwargs)
+
+    def write_configuration(self, strm, indent=0):
+        for pkg in self.packages:
+            insts = list(pkg.iter_installations())
+            found = len(insts) > 0
+            if found and pkg.explicit:
+                strm.write(indent*' ' + '%s\n'%pkg.name)
+
+                # Just use the first installation I can find.
+                indent += 2
+                if pkg.sub_packages:
+                    strm.write(indent*' ' + 'selected package: %s\n'%insts[0].version.package.name)
+                if insts[0].location is not None:
+                    strm.write(indent*' ' + '%s\n'%insts[0].location.text(indent))
+                indent -= 2
+
+    def show_configuration(self, strm, indent=0):
+
+        # If the user requested to see current configuration then
+        # do so now, unless they wished to clean.
+        if self.arguments.show_config:
+            strm.write(indent*' ' + 'Current arguments:\n')
+            indent += 2
+            for k, v in self.arguments.__dict__.iteritems():
+                if k in ['show_config']:
+                    continue
+                if v is not None and (not isinstance(v, list) or len(v) > 0):
+                    arg = self._arg_map.get(k)
+                    strm.write(indent*' ' + '{} {}\n'.format(arg.option_strings[0], v))
+            indent -= 2
+            strm.write('Current configuration:\n')
+            self.write_configuration(strm, indent + 2)
+            self.exit(False)

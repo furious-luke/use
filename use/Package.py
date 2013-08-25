@@ -237,11 +237,10 @@ class Version(object):
 
         # Check if the user supplied locations.
         ctx = self.package.ctx
-        name = self.package.option_name
-        base_dir = getattr(ctx.arguments, name + '-dir', None)
-        bin_dir = getattr(ctx.arguments, name + '-bin-dir', None)
-        inc_dir = getattr(ctx.arguments, name + '-inc-dir', None)
-        lib_dir = getattr(ctx.arguments, name + '-lib-dir', None)
+        base_dir = self.package._get_arg(ctx.arguments, '-dir')
+        bin_dir = self.package._get_arg(ctx.arguments, '-bin-dir')
+        inc_dir = self.package._get_arg(ctx.arguments, '-inc-dir')
+        lib_dir = self.package._get_arg(ctx.arguments, '-lib-dir')
         if base_dir or bin_dir or inc_dir or lib_dir:
             for loc in platform.iter_base_locations(base_dir, bin_dir, inc_dir, lib_dir):
                 yield loc
@@ -523,13 +522,15 @@ class Package(object):
                 cur = ctx.load_package(sub, False)
                 pkgs.append(cur)
                 self._sub_pkg_map[sub] = cur
+                cur.super_packages.append(self)
             self.sub_packages = pkgs
         else:
             self.sub_packages = []
+        self.super_packages = []
 
     @property
     def url(self):
-        for ver in self.iter_versions():
+        for ver in self.versions:
             url = getattr(ver, 'url', None)
             if url is not None:
                 return url
@@ -751,8 +752,7 @@ class Package(object):
         # headers or libraries to find.
         if has_any:
             name = self.option_name
-            parser.add_argument('--' + name + '-dir', dest=name + '-dir',
-                                help='Specify base directory for %s.'%self.name)
+            self.ctx.new_arguments()('--' + name + '-dir', dest=name + '-dir', help='Specify base directory for %s.'%self.name)
 
         # Check for usage of headers, binaries or libraries.
         for attr, arg, help in [('binaries', '-bin-dir', 'Specify binary directory for %s.'),
@@ -782,11 +782,12 @@ class Package(object):
         # Check for silly arguments.
         if (dl or all_dl) and (base or bin_dir or inc_dir or lib_dir):
             print 'Error: Can\'t specify the download flag and also package location flags.'
-            self.ctx.exit(1)
+            self.ctx.exit(False)
 
     def check_download(self):
-        if getattr(self.ctx.arguments, self.option_name + '-download', None):
-            self.download()
+        if self._get_arg(self.ctx.arguments, '-download') or getattr(self.ctx.arguments, 'download_all', None):
+            if self.url:
+                self.download()
 
     def download(self):
         sys.stdout.write('    ' + self.name + '\n')
@@ -850,6 +851,16 @@ class Package(object):
             val = getattr(inst.version, attr, None)
             if val is None:
                 val = getattr(self, attr, default)
+        return val
+
+    def _get_arg(self, args, suf):
+        name = self.option_name + suf
+        val = getattr(args, name, None)
+        if val is None:
+            for sup in self.super_packages:
+                val = sup._get_arg(args, suf)
+                if val is not None:
+                    break
         return val
 
     # def save(self, base_dir):

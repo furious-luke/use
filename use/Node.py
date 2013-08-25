@@ -10,7 +10,7 @@ class Node(Validatable):
         self.products = []
         self.dependencies = []
         self.scanner = None
-        self._seen = False
+        self.seen = False
         self._invalid = False
         self._src_crcs = None
         self._done_scan = False
@@ -32,7 +32,7 @@ class Node(Validatable):
 
         # If we've already processed this node don't do
         # so again.
-        if self._seen:
+        if self.seen:
             logging.debug('Node: Already seen this node.')
             return self._invalid
 
@@ -59,7 +59,7 @@ class Node(Validatable):
             self.update(ctx)
 
         # Flag as seen.
-        self._seen = True
+        self.seen = True
 
         # Return our invalidation state.
         logging.debug('Node: Done building node: ' + str(self))
