@@ -126,8 +126,12 @@ class Resolver(Node):
                 else:
                     use._found = False
                     return False
-            use._found = have_right
-            return have_right
+            if use.op != 'or':
+                use._found = have_right
+                return have_right
+            else:
+                use._found = True
+                return True
         elif isinstance(use, FeatureUse):
             logging.debug('Resolver: Have FeatureUse.')
             self.check_use(use.use)
