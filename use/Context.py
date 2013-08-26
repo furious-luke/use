@@ -238,7 +238,7 @@ class Context(object):
         for use in self.uses:
             if not isinstance(use, Use):
                 continue
-            deps = use.package.dependencies
+            deps = use.package.all_dependencies
             if deps and use.parents:
                 logging.debug('Context: Augmenting ' + str(use))
                 new_use = use

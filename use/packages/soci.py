@@ -3,7 +3,7 @@ import use
 class postgresql(use.Feature):
     dependencies = ['postgresql']
     headers = ['soci/postgresql/soci-postgresql.h']
-    libraries = ['soci-postgresql']
+    libraries = ['soci_postgresql']
 
 class Default(use.Version):
     version = 'default'
@@ -13,6 +13,7 @@ class Default(use.Version):
 
 class soci(use.Package):
     versions = [Default]
+    header_sub_dirs = ['include/soci']
     # optional_dependencies = ['cmake']
     url = 'http://downloads.sourceforge.net/project/soci/soci/soci-3.1.0/soci-3.1.0.zip'
 

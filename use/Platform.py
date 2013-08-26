@@ -17,15 +17,16 @@ class Platform(object):
         self._shared_lib_str = 'lib{name}.so'
         self._set_os(platform.system())
 
-    def iter_locations(self, patterns=[]):
+    def iter_locations(self, patterns=[], hdr_sub_dirs=[]):
+        hdr_sub_dirs = [hdr_sub_dirs + d for d in self.header_sub_dirs]
         patterns = to_list(patterns)
         for base in self.base_dirs:
-            for loc in self.iter_base_locations(base):
+            for loc in self.iter_base_locations(base, None, hdr_sub_dirs):
                 yield loc
         for sd in self.search_dirs:
             for pattern in patterns:
                 for base in glob.iglob(os.path.join(sd, pattern)):
-                    for loc in self.iter_base_locations(base):
+                    for loc in self.iter_base_locations(base, None, hdr_sub_dirs):
                         yield loc
 
     def iter_base_locations(self, base_dir, bin_dir=None, hdr_dir=None, lib_dir=None):

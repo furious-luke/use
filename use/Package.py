@@ -144,6 +144,8 @@ class Version(object):
         for ftr in self.features:
             self.package.add_feature(ftr)
 
+        self.header_sub_dirs = getattr(self, 'header_sub_dirs', getattr(self.package, 'header_sub_dirs', []))
+
     def __eq__(self, op):
         return self._ver == op._ver
 
@@ -242,6 +244,10 @@ class Version(object):
         inc_dir = self.package._get_arg(ctx.arguments, '-inc-dir')
         lib_dir = self.package._get_arg(ctx.arguments, '-lib-dir')
         if base_dir or bin_dir or inc_dir or lib_dir:
+            if base_dir is None:
+                bin_dir = bin_dir if bin_dir is not None else [None]
+                inc_dir = inc_dir if inc_dir is not None else [None]
+                lib_dir = lib_dir if lib_dir is not None else [None]
             for loc in platform.iter_base_locations(base_dir, bin_dir, inc_dir, lib_dir):
                 yield loc
 
@@ -253,13 +259,13 @@ class Version(object):
             if base_dir is None:
                 base_dir = os.environ.get(name + '_HOME', None)
             if base_dir is not None:
-                for loc in platform.iter_base_locations(base_dir):
+                for loc in platform.iter_base_locations(base_dir, self.header_sub_dirs):
                     yield loc
 
             else:
 
                 # Otherwise use generated locations.
-                for loc in platform.iter_locations(self.patterns):
+                for loc in platform.iter_locations(self.patterns, self.header_sub_dirs):
                     yield loc
 
     ##
@@ -329,7 +335,7 @@ class Version(object):
         bin_dir = getattr(ctx.arguments, name + '-bin-dir', None)
         inc_dir = getattr(ctx.arguments, name + '-inc-dir', None)
         lib_dir = getattr(ctx.arguments, name + '-lib-dir', None)
-        if not (base_dir or inc_dir or lib_dir):
+        if not (base_dir or bin_dir or inc_dir or lib_dir):
             self._potential_locations.append(loc)
 
     ##
@@ -535,6 +541,20 @@ class Package(object):
             if url is not None:
                 return url
         return None
+
+    @property
+    def all_dependencies(self):
+
+        # To keep the ordering, use lists and check each element. This
+        # will be slow for large amounts of dependencies, but I doubt we
+        # will have that situation.
+        deps = list(self.dependencies)
+        for d in self.dependencies:
+            new_deps = d.all_dependencies
+            for nd in new_deps:
+                if nd not in deps:
+                    deps.append(nd)
+        return deps
 
     ##
     ## Packages use their class type for comparison. This is
@@ -782,6 +802,9 @@ class Package(object):
         # Check for silly arguments.
         if (dl or all_dl) and (base or bin_dir or inc_dir or lib_dir):
             print 'Error: Can\'t specify the download flag and also package location flags.'
+            self.ctx.exit(False)
+        if base and (bin_dir or inc_dir or lib_dir):
+            print 'Error: Can\'t specify both a base directory and binary, include or library directories.'
             self.ctx.exit(False)
 
     def check_download(self):

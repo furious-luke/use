@@ -1,4 +1,5 @@
 import os
+from .conv import to_list
 
 class Location(object):
 
@@ -33,6 +34,7 @@ class Location(object):
         return ('\n' + indent*' ').join(text)
 
     def _iter_dirs(self, dirs):
+        dirs = to_list(dirs)
         for d in dirs:
             if os.path.isabs(d):
                 path = d
