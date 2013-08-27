@@ -29,7 +29,7 @@ class Command(Action):
         self.command = command
         self.create_dirs = create_dirs
 
-    def __call__(self, opts):
+    def __call__(self, opts=None):
         logging.debug('Command: Executing.')
 
         if self.create_dirs:
@@ -44,6 +44,8 @@ class Command(Action):
         logging.debug('Command: Done executing.')
 
     def get_command(self, opts):
+        if opts is None:
+            opts = {}
         if isinstance(self.command, OptionParser):
             return self.command(**opts)
         else:
@@ -58,6 +60,8 @@ class Command(Action):
             raise CommandFailed(self)
 
     def _create_dirs(self, opts):
+        if opts is None:
+            return
         targets = opts.get('targets', None)
         if targets is None:
             targets = opts.get('target', [])

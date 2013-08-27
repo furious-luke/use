@@ -640,6 +640,9 @@ class Package(object):
     def make_productions(self, nodes, inst, opts, single=False, **kwargs):
         logging.debug('Package: Making productions.')
 
+        # Modify the single flag by any single option.
+        single = opts.get('single', single)
+
         # If we don't have a default builder or default target
         # node type then bail.
         default_builder = self._get_attr(inst, 'default_builder')
@@ -662,7 +665,9 @@ class Package(object):
         # Either single or multi.
         prods = []
         if not single:
-            opts['targets'] = []
+            has_targets = opts.get('has_targets', None)
+            if has_targets is None or has_targets:
+                opts['targets'] = []
             for node in nodes:
                 src_fn, src_suf = os.path.splitext(node.path)
                 src = src_fn + (suf if suf else src_suf)
@@ -670,11 +675,18 @@ class Package(object):
                 if src[0] == '/' and dir_strip == 0:
                     new_src = '/' + new_src
                 dst = os.path.join(pre, new_src)
-                target = self.ctx.node(default_target_node, dst)
-                opts['targets'].append(target)
+                if has_targets is None or has_targets:
+                    target = self.ctx.node(default_target_node, dst)
+                    opts['targets'].append(target)
+                else:
+                    target = None
+                if target is not None:
+                    target_tuple = (target,)
+                else:
+                    target_tuple = tuple()
                 prods.append(((node,),
                               default_builder(self.ctx, node, target, inst.actions(node, target, opts), opts, **kwargs),
-                              (target,)))
+                              target_tuple))
         else:
             target = opts.get('target', None)
             target = os.path.join(pre, target)
