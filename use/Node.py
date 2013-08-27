@@ -140,3 +140,12 @@ class Node(Validatable):
         if self._src_crcs is None:
             self.update_source_crcs(ctx)
         return self._src_crcs
+
+class Always(Node):
+
+    def __init__(self, *args, **kwargs):
+        super(Always, self).__init__(*args, **kwargs)
+        self.path = None
+
+    def invalidated(self, ctx):
+        return True

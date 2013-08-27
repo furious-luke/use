@@ -1,4 +1,4 @@
-import os, shlex, errno
+import sys, os, shlex, errno
 from subprocess import Popen, PIPE
 
 def getarg(name, args, kwargs, required=True):
@@ -23,8 +23,11 @@ def load_class(module_name, class_name=None):
 def strip_missing(dirs):
     return [d for d in dirs if os.path.exists(d)]
 
-def run_command(command):
+def run_command(command, show_stdout=False):
     proc = Popen(shlex.split(command), stdout=PIPE, stderr=PIPE)
+    while proc.poll() is None:
+        sys.stdout.write(proc.stdout.read())
+        sys.stdout.flush()
     stdout, stderr = proc.communicate()
     return (proc.returncode, stdout, stderr)
 

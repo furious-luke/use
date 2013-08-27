@@ -652,7 +652,7 @@ class Package(object):
 
         # We need either a destination suffix or a prefix in order
         # to successfully transform a file.
-        suf = opts.get('suffix', self._get_attr(inst, 'default_target_suffix', ''))
+        suf = opts.get('suffix', self._get_attr(inst, 'default_target_suffix', None))
         pre = opts.get('prefix', '')
         tgt = opts.get('target', '')
         if not suf and not pre and (single and not tgt):
@@ -665,28 +665,23 @@ class Package(object):
         # Either single or multi.
         prods = []
         if not single:
-            has_targets = opts.get('has_targets', None)
-            if has_targets is None or has_targets:
-                opts['targets'] = []
+            target = opts.get('target', None)
+            opts['targets'] = [target] if target is not None else []
             for node in nodes:
-                src_fn, src_suf = os.path.splitext(node.path)
-                src = src_fn + (suf if suf else src_suf)
-                new_src = '/'.join([d for i, d in enumerate([d for d in src.split('/') if d]) if i >= dir_strip])
-                if src[0] == '/' and dir_strip == 0:
-                    new_src = '/' + new_src
-                dst = os.path.join(pre, new_src)
-                if has_targets is None or has_targets:
-                    target = self.ctx.node(default_target_node, dst)
-                    opts['targets'].append(target)
+                if target is None:
+                    src_fn, src_suf = os.path.splitext(node.path)
+                    src = src_fn + (suf if suf is not None else src_suf)
+                    new_src = '/'.join([d for i, d in enumerate([d for d in src.split('/') if d]) if i >= dir_strip])
+                    if src[0] == '/' and dir_strip == 0:
+                        new_src = '/' + new_src
+                    dst = os.path.join(pre, new_src)
+                    cur_target = self.ctx.node(default_target_node, dst)
+                    opts['targets'].append(cur_target)
                 else:
-                    target = None
-                if target is not None:
-                    target_tuple = (target,)
-                else:
-                    target_tuple = tuple()
+                    cur_target = target()
                 prods.append(((node,),
-                              default_builder(self.ctx, node, target, inst.actions(node, target, opts), opts, **kwargs),
-                              target_tuple))
+                              default_builder(self.ctx, node, cur_target, inst.actions(node, cur_target, opts), opts, **kwargs),
+                              (cur_target,)))
         else:
             target = opts.get('target', None)
             target = os.path.join(pre, target)

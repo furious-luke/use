@@ -8,6 +8,7 @@ import os, sys, signal, logging
 from use.Context import Context
 from use.Platform import platform
 from use.Argument import Argument
+from use.Node import Always
 
 # Setup debugging logging.
 try:
@@ -32,6 +33,7 @@ identity = ctx.new_use('identity')
 identity.package.explicit = False
 files = ctx.new_use('files')
 files.package.explicit = False
+dummies = type('dummies', (object,), dict(always=Always))
 globals_dict = {
 
     # Use shortcuts to insert 
@@ -43,6 +45,7 @@ globals_dict = {
     'targets': Argument('targets', ctx),
     'files': files,
     'identity': identity,
+    'dummies': dummies,
 }
 
 # Try to execute the build script.

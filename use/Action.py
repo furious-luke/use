@@ -25,9 +25,11 @@ class Action(object):
 ##
 class Command(Action):
 
-    def __init__(self, command, create_dirs=True):
+    def __init__(self, command, **kwargs):
         self.command = command
-        self.create_dirs = create_dirs
+        self.create_dirs = kwargs.get('create_dirs', True)
+        self.show_command = kwargs.get('show_command', True)
+        self.show_stdout = kwargs.get('show_stdout', False)
 
     def __call__(self, opts=None):
         logging.debug('Command: Executing.')
@@ -37,8 +39,9 @@ class Command(Action):
 
         cmd = self.get_command(opts)
         logging.debug('Command is: ' + cmd)
-        sys.stdout.write(cmd + '\n')
-        self.return_code, self.stdout, self.stderr = run_command(cmd)
+        if self.show_command:
+            sys.stdout.write(cmd + '\n')
+        self.return_code, self.stdout, self.stderr = run_command(cmd, self.show_stdout)
         self._set_status(cmd)
 
         logging.debug('Command: Done executing.')
@@ -67,7 +70,9 @@ class Command(Action):
             targets = opts.get('target', [])
         targets = to_list(targets)
         for tgt in targets:
-            make_dirs(os.path.dirname(tgt.path))
+            path = getattr(tgt, 'path', None)
+            if path is not None:
+                make_dirs(os.path.dirname(path))
 
 ##
 ##
