@@ -25,9 +25,10 @@ def strip_missing(dirs):
 
 def run_command(command, show_stdout=False):
     proc = Popen(shlex.split(command), stdout=PIPE, stderr=PIPE)
-    while proc.poll() is None:
-        sys.stdout.write(proc.stdout.read())
-        sys.stdout.flush()
+    if show_stdout:
+        while proc.poll() is None:
+            sys.stdout.write(proc.stdout.read())
+            sys.stdout.flush()
     stdout, stderr = proc.communicate()
     return (proc.returncode, stdout, stderr)
 
