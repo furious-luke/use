@@ -516,3 +516,17 @@ class Context(object):
             strm.write('Current configuration:\n')
             self.write_configuration(strm, indent + 2)
             self.exit(False)
+
+    def norm_path(self, path):
+        if os.path.isabs(path):
+            cwd = os.getcwd()
+            if cwd[-1] != '/':
+                cwd += '/'
+            com = os.path.commonprefix([cwd, path])
+            if com == cwd:
+                return os.path.relpath(path, cwd)
+        return path
+
+    def find_node(self, path):
+        path = self.norm_path(path)
+        return self._node_map.get(path, None)

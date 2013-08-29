@@ -3,8 +3,8 @@ from .Node import *
 
 class File(Node):
 
-    def __init__(self, path):
-        Node.__init__(self)
+    def __init__(self, path, *args, **kwargs):
+        Node.__init__(self, *args, **kwargs)
         self.path = path
         self.abspath = os.path.abspath(path)
         self.absdirname = os.path.dirname(self.abspath)

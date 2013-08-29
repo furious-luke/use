@@ -4,7 +4,7 @@ from .Validatable import Validatable
 class Node(Validatable):
 
     def __init__(self, *args, **kwargs):
-        super(Node, self).__init__(*args, **kwargs)
+        super(Node, self).__init__()
         self.rule = None
         self.builder = None
         self.products = []
@@ -116,12 +116,18 @@ class Node(Validatable):
 
     def scan(self, ctx, bldr):
         logging.debug('Node: Scanning.')
+        if self.scanner is None:
+            scanner = bldr.options.get('scanner', None)
+            if scanner is not None:
+                scanner = scanner(ctx)
+        else:
+            scanner = self.scanner
         if not self._done_scan:
-            if self.scanner is not None:
-                logging.debug('Node: Using scanner: ' + str(self.scanner.__class__))
+            if scanner is not None:
+                logging.debug('Node: Using scanner: ' + str(scanner.__class__))
                 with open(str(self), 'r') as src_file:
                     data = src_file.read()
-                new_deps = list(self.scanner.find_all(self, data, bldr))
+                new_deps = list(scanner.find_all(self, data, bldr))
                 logging.debug('Node: New dependencies: ' + str(new_deps))
                 self.dependencies.extend(new_deps)
                 self._new_crc = self._crc32(data)
