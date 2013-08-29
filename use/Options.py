@@ -115,6 +115,9 @@ class OptionDict(object):
         self.condition = cond
         self._opts = kwargs
 
+    def __repr__(self):
+        return str(self.get())
+
     def __eq__(self, op):
         if type(self) != type(op):
             return False
@@ -162,6 +165,9 @@ class OptionJoin(object):
         self.right = right
         self._merged = None
 
+    def __repr__(self):
+        return str(self.get())
+
     def __eq__(self, op):
         if type(self) != type(op):
             return False
@@ -182,7 +188,7 @@ class OptionJoin(object):
             self._merged = {}
             self._update(self.left)
             self._update(self.right)
-        return self._merged
+        return copy.deepcopy(self._merged)
 
     def parse(self, ctx):
         self.left.parse(ctx)
