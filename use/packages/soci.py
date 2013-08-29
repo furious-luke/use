@@ -5,11 +5,16 @@ class postgresql(use.Feature):
     headers = ['soci/postgresql/soci-postgresql.h']
     libraries = ['soci_postgresql']
 
+class sqlite3(use.Feature):
+    dependencies = ['sqlite3']
+    headers = ['soci/sqlite3/soci-sqlite3.h']
+    libraries = ['soci_sqlite3']
+
 class Default(use.Version):
     version = 'default'
     headers = ['soci/soci.h']
     libraries = ['soci_core']
-    features = [postgresql]
+    features = [postgresql, sqlite3]
 
 class soci(use.Package):
     versions = [Default]
