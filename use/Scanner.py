@@ -26,6 +26,11 @@ class CScanner(Scanner):
                 if cur_node in found:
                     continue
                 yield cur_node
+            elif os.path.exists(path):
+                cur_node = self.ctx.file(path)
+                if cur_node in found:
+                    continue
+                yield cur_node
 
             # Next try all header dirs.
             else:
