@@ -37,8 +37,9 @@ class RuleList(object):
 
 class Rule(object):
 
-    def __init__(self, source, use, options=None):
+    def __init__(self, source, use, cond=None, options=None):
         super(Rule, self).__init__()
+        self.condition = cond
         self.source = source
         self._src_nodes = []
         self.product_nodes = []
@@ -48,6 +49,18 @@ class Rule(object):
 
     def __eq__(self, op):
         if type(self) != type(op):
+            return False
+
+        # TODO: Fix this condition compare.
+        if type(self.condition) != type(op.condition):
+            return False
+        if isinstance(self.condition, ArgumentCheck):
+            if not self.condition.compare(op.condition):
+                return False
+        elif isinstance(op.condition, ArgumentCheck):
+            if not op.condition.coimpare(self.condition):
+                return False
+        elif self.condition != op.condition:
             return False
 
         # Sources must be the same.
@@ -114,26 +127,29 @@ class Rule(object):
     def expand(self, ctx):
         logging.debug('Rule: Expanding rule: %s'%repr(self))
 
-        # The Use knows how to convert the sources into productions.
-        # A production is a transformation from source to product,
-        # in the form of a tuple with three elements, a tuple of sources,
-        # a builder, and a tuple of products.
-        self.productions = self.use.expand(self.source_nodes, self.options)
-        if self.productions is None:
-            self.productions = []
-        logging.debug('Rule: Have productions: %s'%repr(self.productions))
+        # Only perform expansion if the rule is enabled.
+        if self.condition is None or bool(self.condition):
 
-        # Cache product nodes.
-        self.product_nodes = sum([list(d) for s, b, d in self.productions], [])
+            # The Use knows how to convert the sources into productions.
+            # A production is a transformation from source to product,
+            # in the form of a tuple with three elements, a tuple of sources,
+            # a builder, and a tuple of products.
+            self.productions = self.use.expand(self.source_nodes, self.options)
+            if self.productions is None:
+                self.productions = []
+            logging.debug('Rule: Have productions: %s'%repr(self.productions))
 
-        # Scan product nodes and update the source nodes with
-        # product nodes and update product nodes with rules.
-        for srcs, bldr, dsts in self.productions:
-            for src in srcs:
-                src.products = dsts
-            for dst in dsts:
-                dst.rule = self
-                dst.builder = bldr
+            # Cache product nodes.
+            self.product_nodes = sum([list(d) for s, b, d in self.productions], [])
+
+            # Scan product nodes and update the source nodes with
+            # product nodes and update product nodes with rules.
+            for srcs, bldr, dsts in self.productions:
+                for src in srcs:
+                    src.products = dsts
+                for dst in dsts:
+                    dst.rule = self
+                    dst.builder = bldr
 
         logging.debug('Rule: Done expanding rule.')
 

@@ -188,7 +188,10 @@ class OptionJoin(object):
             self._merged = {}
             self._update(self.left)
             self._update(self.right)
-        return copy.deepcopy(self._merged)
+            merged = self._merged
+            self._merged = None
+        # return copy.deepcopy(self._merged)
+        return merged
 
     def parse(self, ctx):
         self.left.parse(ctx)

@@ -609,7 +609,7 @@ class Package(object):
     def add_feature(self, ftr):
         self.features.setdefault(ftr.name, {})[ftr.version] = ftr
 
-    def feature(self, name, use, options=None, cond=None):
+    def feature_use(self, name, use, options=None, cond=None):
         from .Feature import FeatureUse
         ftr_use = FeatureUse(name, use, options, cond)
         self.ctx.uses.append(ftr_use)

@@ -75,18 +75,31 @@ class Use(Node):
     def have(self):
         return Argument('enabled', self.package.ctx, self)
 
+    def _has_feature(self, name):
+        if self.enabled:
+            for ftr in self.selected.features:
+                if ftr.name == name:
+                    return True
+        return False
+
+    def has_feature(self, name):
+        return Argument('_has_feature', self.package.ctx, self, {'name': name})
+
     def has_packages(self):
         return True
 
     def package_iter(self):
         yield self.package
 
+    ##
+    ## Make a new feature use.
+    ##
     def feature(self, name, opts=None, cond=None, **kwargs):
         if opts and kwargs:
             opts = opts + self.package.ctx.new_options(**kwargs)
         elif kwargs:
             opts = self.package.ctx.new_options(**kwargs)
-        return self.package.feature(name, self, opts, cond)
+        return self.package.feature_use(name, self, opts, cond)
 
     def make_options_dict(self, options):
         return self.selected.options().make_options_dict(options)

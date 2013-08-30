@@ -55,27 +55,27 @@ class Resolver(Node):
         # for use in ctx.uses:
         #     self.check_use(use)
 
-        # Just use the first installation of every package.
-        for use in ctx.uses:
+        # # Just use the first installation of every package.
+        # for use in ctx.uses:
 
-            # Feature uses get handled a little differently.
-            if isinstance(use, FeatureUse):
+        #     # Feature uses get handled a little differently.
+        #     if isinstance(use, FeatureUse):
 
-                # If there is no selected installation then fail.
-                if use.use.selected is None:
-                    sys.stdout.write('\n    Failed to resolve "' + use.ftr + '".')
-                    sys.exit(1)
+        #         # If there is no selected installation then fail.
+        #         if use.use.selected is None:
+        #             sys.stdout.write('\n    Failed to resolve "' + use.ftr + '".')
+        #             sys.exit(1)
 
-                # Take the selected installation and see if we can find this
-                # feature in its list.
-                use.selected = None
-                for ftr in use.use.selected.features:
-                    if ftr.name == use.feature_name:
-                        use.selected = ftr
-                        break
-                if use.selected is None:
-                    sys.stdout.write('\n    Failed to resolve "' + use.ftr + '".')
-                    sys.exit(1)
+        #         # Take the selected installation and see if we can find this
+        #         # feature in its list.
+        #         use.selected = None
+        #         for ftr in use.use.selected.features:
+        #             if ftr.name == use.feature_name:
+        #                 use.selected = ftr
+        #                 break
+        #         if use.selected is None:
+        #             sys.stdout.write('\n    Failed to resolve "' + use.ftr + '".')
+        #             sys.exit(1)
 
         logging.debug('Resolver: Done resolving package installations.')
 
@@ -106,6 +106,13 @@ class Resolver(Node):
 
         return sel
 
+    def check_feature(self, use):
+        if use.use.enabled:
+            for ftr in use.use.selected.features:
+                if ftr.name == use.feature_name:
+                    use.selected = ftr
+                    break
+
     def find_roots(self, use, roots):
         if not use.parents:
             roots.add(use)
@@ -135,7 +142,8 @@ class Resolver(Node):
         elif isinstance(use, FeatureUse):
             logging.debug('Resolver: Have FeatureUse.')
             self.check_use(use.use)
-            return use.use.selected is not None
+            self.check_feature(use)
+            return use.selected is not None
         else:
             logging.debug('Resolver: Have Use.')
             self.check_use(use)
@@ -157,6 +165,6 @@ class Resolver(Node):
                 else:
                     missing.append(use)
         else:
-            if not use.use._found:
+            if use.selected is None:
                 missing.append(use)
         return missing

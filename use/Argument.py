@@ -67,10 +67,11 @@ class Arguments(object):
 
 class Argument(object):
 
-    def __init__(self, name, ctx, use=None):
+    def __init__(self, name, ctx, use=None, kwargs={}):
         self.name = name
         self.context = ctx
         self.use = use
+        self._kwargs = kwargs
 
     def __eq__(self, op):
         return ArgumentCheck('eq', self, op)
@@ -91,7 +92,11 @@ class Argument(object):
         if self.use is None:
             return self.context.argument(self.name)
         else:
-            return getattr(self.use, self.name)
+            attr = getattr(self.use, self.name)
+            if callable(attr):
+                return attr(**self._kwargs)
+            else:
+                return attr
 
     def compare(self, op):
         return self.name == op.name and self.use == op.use
