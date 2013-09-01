@@ -1,4 +1,5 @@
 import os, re
+from Platform import platform
 from File import File
 
 class Scanner(object):
@@ -11,7 +12,13 @@ class CScanner(Scanner):
     hdr_re = r'#\s*include\s*(?:<([^>]*)>|"([^"]*)")'
     hdr_prog = re.compile(hdr_re)
 
-    def find_all(self, node, data, bldr, found=None):
+    def find_all(self, node, data, bldr):
+        for n in self._find_all_headers(node, data, bldr, None):
+            yield n
+        for n in self._find_all_libraries(node, data, bldr):
+            yield n
+
+    def _find_all_headers(self, node, data, bldr, found):
         if found is None:
             found = set()
         for hdr in re.findall(self.hdr_prog, data):
@@ -66,5 +73,24 @@ class CScanner(Scanner):
                     except IOError:
                         pass
                     if hdr_data is not None:
-                        for f in self.find_all(cur_node, hdr_data, bldr, found):
+                        for f in self._find_all_headers(cur_node, hdr_data, bldr, found):
                             yield f
+
+    def _find_all_libraries(self, node, data, bldr):
+
+        # Don't try this if we are compiling.
+        if 'compile' in bldr.options:
+            return
+
+        # Scan for each library this builder uses.
+        for lib_name in bldr.options.get('libraries', []):
+
+            # Do I have a node in my build correlating to this library?
+            for func in [platform.make_shared_library, platform.make_static_library]:
+                lib = func(lib_name)
+                for dir in (['.'] + bldr.options.get('library_dirs', [])):
+                    path = os.path.join(dir, lib)
+                    cur_node = self.ctx.find_node(path)
+                    if cur_node is not None:
+                        yield cur_node
+                        break

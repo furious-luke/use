@@ -54,10 +54,6 @@ class gcc(use.Package):
         # Single target or multitarget?
         single = not opts.get('compile', False)
 
-        # # If we're building a single binary then make sure we have a target.
-        # if 'target' not in opts:
-        #     opts['target'] = self.default_binary_filename
-
         # Call parent.
         prods = super(gcc, self).make_productions(nodes, inst, opts, single=single)
 
