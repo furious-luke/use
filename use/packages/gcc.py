@@ -54,6 +54,10 @@ class gcc(use.Package):
         # Single target or multitarget?
         single = not opts.get('compile', False)
 
+        # Have the platform order the library directories as appropriate.
+        if 'library_dirs' in opts:
+            opts['library_dirs'] = platform.order_library_dirs(opts['library_dirs'])
+
         # Call parent.
         prods = super(gcc, self).make_productions(nodes, inst, opts, single=single)
 

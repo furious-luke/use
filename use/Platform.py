@@ -44,6 +44,19 @@ class Platform(object):
     def make_shared_library(self, name):
         return os.path.join(os.path.dirname(name), self._shared_lib_str.format(name=os.path.basename(name)))
 
+    def order_library_dirs(self, lib_dirs):
+        dirs = set(['/usr/lib/x86_64-linux-gnu', '/usr/lib64/x86_64-linux-gnu',
+                    '/usr/lib/i386-linux-gnu', '/usr/lib64/i386-linux-gnu'])
+        new_lib_dirs = []
+        post = []
+        for d in lib_dirs:
+            if d in dirs:
+                post.append(d)
+            else:
+                new_lib_dirs.append(d)
+        new_lib_dirs.extend(post)
+        return new_lib_dirs
+
     def _set_os(self, os_name):
         self.os_name = os_name.lower()
         try:

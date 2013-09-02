@@ -26,6 +26,7 @@ def append_libraries(obj, opts):
         for d in lib_dirs:
             if d not in dst and d not in platform.system_library_dirs:
                 dst.append(d)
+        opts['library_dirs'] = platform.order_library_dirs(dst)
     if libs:
         dst = opts.setdefault('libraries', [])
         for h in libs:
@@ -39,3 +40,4 @@ def append_rpaths(obj, opts):
         for d in lib_dirs:
             if d not in dst and d not in platform.system_library_dirs:
                 dst.append(d)
+        opts['rpath_dirs'] = platform.order_library_dirs(dst)
