@@ -287,12 +287,27 @@ class Context(object):
     def find_targets(self):
         logging.debug('Context: Finding targets.')
 
-        # By default we locate any nodes with no children.
+        # Clear any existing targets.
         self.targets = []
-        for rule in self.rules:
-            for node in rule.product_nodes:
-                if not node.products:
-                    self.targets.append(node)
+
+        # Strip out any known dummy targets.
+        tgts = set(self.arguments.targets)
+        if 'configure' in tgts:
+            tgts.remove('configure')
+
+        # Can I find any of the remaining targets in my
+        # set of nodes?
+        for tgt in tgts:
+            node = self.find_node(tgt)
+            if node is not None:
+                self.targets.append(node)
+
+        # By default we locate any nodes with no children.
+        if not self.targets:
+            for rule in self.rules:
+                for node in rule.product_nodes:
+                    if not node.products:
+                        self.targets.append(node)
         logging.debug('Context: Found targets: ' + str(self.targets))
 
         logging.debug('Context: Done finding targets.')
