@@ -51,16 +51,19 @@ class Use(Node):
     def __add__(self, op):
         grp = UseGroup(self, op, 'add')
         self.parents.append(grp)
+        op.parents.append(grp)
         return grp
 
     def __and__(self, op):
         grp = UseGroup(self, op, 'and')
         self.parents.append(grp)
+        op.parents.append(grp)
         return grp
 
     def __or__(self, op):
         grp = UseGroup(self, op, 'or')
         self.parents.append(grp)
+        op.parents.append(grp)
         return grp
 
     @property

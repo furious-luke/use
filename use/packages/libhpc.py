@@ -7,3 +7,4 @@ class Default(use.Version):
 
 class libhpc(use.Package):
     versions = [Default]
+    dependencies = ['boost', 'mpi', 'hdf5', 'pugixml'] #, '?glut']

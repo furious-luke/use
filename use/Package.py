@@ -553,7 +553,7 @@ class Package(object):
             new_deps = d.all_dependencies
             for nd in new_deps:
                 if nd not in deps:
-                    deps.append(nd)
+                    deps.insert(0, nd)
         return deps
 
     ##
