@@ -168,6 +168,9 @@ class Context(object):
         sys.stdout.write('  Configuration details:\n')
         self.write_configuration(sys.stdout, 4)
 
+        # Now exit.
+        sys.exit()
+
     ##
     ##
     ##
