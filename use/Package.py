@@ -243,7 +243,10 @@ class Version(object):
         bin_dir = self.package._get_arg(ctx.arguments, '-bin-dir')
         inc_dir = self.package._get_arg(ctx.arguments, '-inc-dir')
         lib_dir = self.package._get_arg(ctx.arguments, '-lib-dir')
-        if base_dir or bin_dir or inc_dir or lib_dir:
+        dl = self.package._get_arg(ctx.arguments, '-download')
+        if base_dir or bin_dir or inc_dir or lib_dir or dl:
+            if dl:
+                base_dir = self.package._dl_dst_dir
             if base_dir is None:
                 bin_dir = bin_dir if bin_dir is not None else [None]
                 inc_dir = inc_dir if inc_dir is not None else [None]
@@ -259,7 +262,8 @@ class Version(object):
             if base_dir is None:
                 base_dir = os.environ.get(name + '_HOME', None)
             if base_dir is not None:
-                for loc in platform.iter_base_locations(base_dir, self.header_sub_dirs):
+                hdr_sub_dirs = [self.header_sub_dirs + d for d in platform.header_sub_dirs]
+                for loc in platform.iter_base_locations(base_dir, None, hdr_sub_dirs):
                     yield loc
 
             else:
@@ -808,6 +812,8 @@ class Package(object):
 
         # Check for silly arguments.
         if (dl or all_dl) and (base or bin_dir or inc_dir or lib_dir):
+            import pdb
+            pdb.set_trace()
             print 'Error: Can\'t specify the download flag and also package location flags.'
             self.ctx.exit(False)
         if base and (bin_dir or inc_dir or lib_dir):
@@ -867,7 +873,8 @@ class Package(object):
             sys.stdout.write('cached.\n')
 
         # Set the base directory and return to project root.
-        setattr(self.ctx.arguments, self.option_name + '-dir', dst_dir)
+        self._dl_dst_dir = dst_dir
+        # setattr(self.ctx.arguments, self.option_name + '-dir', dst_dir)
         os.chdir(old_dir)
 
     def build_handler(self):
