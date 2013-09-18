@@ -219,7 +219,7 @@ class Version(object):
                 inst = Installation(self, loc,
                                     binaries=zip(self.binaries, bins),
                                     headers=zip(self.headers, hdrs),
-                                    libraries=zip(self.libraries, libs[0], libs[1]))
+                                    libraries=zip(libs[0], libs[1][0], libs[1][1]))
                 self._potential_installations.append(inst)
                 self.harvest(inst)
             else:
@@ -316,8 +316,18 @@ class Version(object):
         if res:
             res, hdrs = self.find_headers(self.headers, loc.header_dirs)
         if res:
-            res = self.find_libraries(self.libraries, loc.library_dirs)
-            libs = res[1:]
+
+            # Libraries can have various sets to check for. Look for
+            # a list in a list.
+            if len(self.libraries) and isinstance(self.libraries[0], list):
+                for libs in self.libraries:
+                    res = self.find_libraries(libs, loc.library_dirs)
+                    if res[0]:
+                        break
+            else:
+                res = self.find_libraries(self.libraries, loc.library_dirs)
+                libs = self.libraries
+            libs = [libs, res[1:]]
             res = res[0]
 
         return (res, bins, hdrs, libs)
