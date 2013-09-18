@@ -168,6 +168,14 @@ class Context(object):
         sys.stdout.write('  Configuration details:\n')
         self.write_configuration(sys.stdout, 4)
 
+        # Write directions.
+        sys.stdout.write('\n^^^ Scroll up to see the results of configuring. ^^^\n')
+        sys.stdout.write('From here you can:\n')
+        sys.stdout.write('  Build:              use\n')
+        sys.stdout.write('  Show configuration: use -s\n')
+        sys.stdout.write('  Reconfigure:        use configure [options]\n')
+        sys.stdout.write('  Show help:          use -h\n')
+
         # Now exit.
         sys.exit()
 
