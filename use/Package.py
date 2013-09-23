@@ -822,8 +822,6 @@ class Package(object):
 
         # Check for silly arguments.
         if (dl or all_dl) and (base or bin_dir or inc_dir or lib_dir):
-            import pdb
-            pdb.set_trace()
             print 'Error: Can\'t specify the download flag and also package location flags.'
             self.ctx.exit(False)
         if base and (bin_dir or inc_dir or lib_dir):
