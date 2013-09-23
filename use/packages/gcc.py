@@ -24,11 +24,12 @@ class gcc(use.Package):
         self._opts.binary = 'gcc'
         self._opts.add(Option('compile', '-c'))
         self._opts.add(Option('pic', '-fPIC'))
+        self._opts.add(Option('openmp', '-fopenmp'))
         self._opts.add(Option('cxx11', '-std=c++11'))
         self._opts.add(Option('optimise', '-O', space=False))
         self._opts.add(Option('symbols', '-g'))
         if platform.os_name == 'darwin':
-            self._opts.add(Option('shared_lib', text='-dynamiclib -install_name {target.abspath}'))
+            self._opts.add(Option('shared_lib', text='-dynamiclib -install_name {target.abspath} -undefined dynamic_lookup'))
         else:
             self._opts.add(Option('shared_lib', '-shared'))
         self._opts.add(Option('define', '-D', space=False))
