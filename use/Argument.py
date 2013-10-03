@@ -76,6 +76,9 @@ class Argument(object):
     def __eq__(self, op):
         return ArgumentCheck('eq', self, op)
 
+    def __and__(self, op):
+        return ArgumentCheck('and', self, op)
+
     def __deepcopy__(self, memo):
         return Argument(self.name, self.context, self.use)
 
@@ -109,17 +112,13 @@ class ArgumentCheck(object):
         self.right = right
 
     def __nonzero__(self):
-        left_val = self.left.value() if isinstance(self.left, Argument) else self.left
-        if self.op == 'eq':
-            right_val = self.right.value() if isinstance(self.right, Argument) else self.right
-            return left_val == right_val
-        elif self.op == 'in':
-            right_val = self.right.value() if isinstance(self.right, Argument) else self.right
-            return right_val in left_val
-        assert 0
+        return bool(self.value())
 
     def __eq__(self, op):
         return self.compare(op)
+
+    def __and__(self, op):
+        return ArgumentCheck('and', self, op)
 
     def __ne__(self, op):
         return not self.compare(op)
@@ -131,7 +130,13 @@ class ArgumentCheck(object):
     def value(self):
         left_val = self.left.value() if isinstance(self.left, Argument) else self.left
         right_val = self.right.value() if isinstance(self.right, Argument) else self.right
-        if self.op == 'add':
+        if self.op == 'eq':
+            return left_val == right_val
+        elif self.op == 'in':
+            return right_val in left_val
+        elif self.op == 'and':
+            return right_val and left_val
+        elif self.op == 'add':
             return left_val + right_val
         assert 0
 
@@ -148,8 +153,7 @@ class ArgumentCheck(object):
         if type(self.right) != type(op.right):
             return False
         if isinstance(self.right, (Argument, ArgumentCheck)):
-            if not self.right.compare(op.right):
-                return False
+            return self.right.compare(op.right)
         else:
             return self.right == op.right
 
