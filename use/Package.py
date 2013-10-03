@@ -247,6 +247,8 @@ class Version(object):
         if base_dir or bin_dir or inc_dir or lib_dir or dl:
             if dl:
                 base_dir = self.package._dl_dst_dir
+            if not inc_dir and self.header_sub_dirs:
+                inc_dir = [self.header_sub_dirs + d for d in platform.header_sub_dirs]
             if base_dir is None:
                 bin_dir = bin_dir if bin_dir is not None else [None]
                 inc_dir = inc_dir if inc_dir is not None else [None]
