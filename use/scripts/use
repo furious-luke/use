@@ -5,7 +5,15 @@
 ##
 
 import os, sys, signal, logging
-from use.Context import Context
+
+# If we are unable to import directly, try
+# to modify the path to do so.
+try:
+    from use.Context import Context
+except:
+    sys.path.insert(0, os.path.join(sys.path[0], '..', '..'))
+    from use.Context import Context
+
 from use.Platform import platform
 from use.Argument import Argument
 from use.Node import Always
