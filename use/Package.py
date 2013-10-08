@@ -237,6 +237,10 @@ class Version(object):
     ##
     def iter_locations(self):
 
+        # If requested to skip, don't provide any locations.
+        if hasattr(self.package, '_skip'):
+            return
+
         # Check if the user supplied locations.
         ctx = self.package.ctx
         base_dir = self.package._get_arg(ctx.arguments, '-dir')
@@ -546,6 +550,11 @@ class Package(object):
                 self._sub_pkg_map[sub] = cur
                 cur.super_packages.append(self)
             self.sub_packages = pkgs
+
+            # Flag all packages except the first to skip downloading.
+            for pkg in self.sub_packages[1:]:
+                pkg._skip = True
+
         else:
             self.sub_packages = []
         self.super_packages = []
@@ -831,7 +840,9 @@ class Package(object):
             self.ctx.exit(False)
 
     def check_download(self):
-        if self._get_arg(self.ctx.arguments, '-download') or getattr(self.ctx.arguments, 'download_all', None):
+        if (self._get_arg(self.ctx.arguments, '-download') or \
+                getattr(self.ctx.arguments, 'download_all', None)) and \
+                not hasattr(self, '_skip'):
             if self.url:
                 self.download()
 

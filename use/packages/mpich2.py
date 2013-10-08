@@ -30,7 +30,7 @@ class pmpich(use.Feature):
 class Default(use.Version):
     version = 'default'
     headers = ['mpi.h']
-    libraries = ['mpich']
+    libraries = [['mpich', 'mpl'], ['mpich']]
     features = [pmpich, mpicc]
     url = 'http://www.mcs.anl.gov/research/projects/mpich2staging/goodell/downloads/tarballs/mpich2-current.tar.gz'
 

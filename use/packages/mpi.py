@@ -2,4 +2,4 @@ import use
 
 class mpi(use.Package):
     name = 'MPI'
-    sub_packages = ['openmpi', 'mpich2']
+    sub_packages = ['mpich2', 'openmpi']
