@@ -522,6 +522,8 @@ class Context(object):
                     strm.write(indent*' ' + 'selected package: %s\n'%insts[0].version.package.name)
                 if insts[0].location is not None:
                     strm.write(indent*' ' + '%s\n'%insts[0].location.text(indent))
+                if insts[0].libraries:
+                    strm.write(indent*' ' + 'libraries: %s\n'%insts[0].libraries)
                 if insts[0].features:
                     strm.write(indent*' ' + 'features: %s\n'%[f.name for f in insts[0].features])
                 indent -= 2
