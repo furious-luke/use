@@ -433,7 +433,7 @@ class Context(object):
 
     def update_node_crc(self, node):
 
-        # Don't update the node if it has not been seen yet.
+        # Don't update the node if it has not been seen.
         if node.seen:
             self.crcs[repr(node)] = node.current_crc(self)
             self.src_crcs[repr(node)] = node.current_source_crcs(self)

@@ -9,6 +9,7 @@ class Node(Validatable):
         self.builder = None
         self.products = []
         self.dependencies = []
+        self.progenitors = []
         self.scanner = None
         self.seen = False
         self._invalid = False
@@ -56,6 +57,12 @@ class Node(Validatable):
 
         # If we are invalid perform an update.
         if self._invalid:
+
+            # Flag all other nodes dependent on this one that
+            # they are now invalidated.
+            self.invalidate_progenitors(ctx)
+
+            # Do the update.
             self.update(ctx)
 
         # Flag as seen.
@@ -84,16 +91,20 @@ class Node(Validatable):
         # If any of my sources are invalidated then I must be so. However
         # this is already checked in build.
 
+        # If there is no CRC record on the context for this node
+        # then I need to rebuild it.
+        if ctx.node_crc(self) == None:
+            return True
+
         # Compare CRCs of sources to those I have stored.
         if self.builder:
             old_src_crcs = ctx.node_source_crcs(self)
             if old_src_crcs is None:
                 return True
             for src in self.builder.dependent_nodes:
-                if src.builder is None:
-                    crc = old_src_crcs.get(repr(src), None)
-                    if crc is None or crc != src.current_crc(ctx):
-                        return True
+                crc = old_src_crcs.get(repr(src), None)
+                if crc is None or crc != src.current_crc(ctx):
+                    return True
 
             # Also check if the builder has changed.
             if hasattr(ctx, 'old_bldrs'):
@@ -108,10 +119,8 @@ class Node(Validatable):
     ##
     def update(self, ctx):
         logging.debug('Node: Updating node: ' + str(self))
-
         if self.builder:
             self.builder.update(ctx)
-
         logging.debug('Node: Done updating node: ' + str(self))
 
     def scan(self, ctx, bldr):
@@ -130,6 +139,8 @@ class Node(Validatable):
                 new_deps = list(scanner.find_all(self, data, bldr))
                 logging.debug('Node: New dependencies: ' + str(new_deps))
                 self.dependencies.extend(new_deps)
+                for nd in new_deps:
+                    nd.progenitors.append(self)
                 self._new_crc = self._crc32(data)
         logging.debug('Node: Done scanning.')
 
@@ -137,8 +148,9 @@ class Node(Validatable):
         if self.builder:
             self._src_crcs = {}
             for src in self.builder.dependent_nodes:
-                if src.builder is None:
-                    self._src_crcs[repr(src)] = src.current_crc(ctx)
+                cur_crc = src.current_crc(ctx)
+                if cur_crc is not None:
+                    self._src_crcs[repr(src)] = cur_crc
         else:
             self._src_crcs = None
 
@@ -146,6 +158,21 @@ class Node(Validatable):
         if self._src_crcs is None:
             self.update_source_crcs(ctx)
         return self._src_crcs
+
+    def invalidate_progenitors(self, ctx):
+
+        # Stop if there is no CRC stored on the context.
+        if ctx.node_crc(self) is None:
+            return
+
+        # Remove the context's CRC.
+        del ctx.crcs[repr(self)]
+
+        # Call for all up builder targets.
+        for n in self.products:
+            n.invalidate_progenitors(ctx)
+        for n in self.progenitors:
+            n.invalidate_progenitors(ctx)
 
 class Always(Node):
 

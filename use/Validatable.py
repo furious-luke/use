@@ -17,6 +17,8 @@ class Validatable(object):
         return self._crc is None or self._new_crc is None or self._new_crc != self._crc
 
     def current_crc(self, ctx):
+        if self._crc is None:
+            self._crc = ctx.node_crc(self)
         return self._new_crc if self._new_crc is not None else self._crc
 
     def _crc32_file(self, filename):

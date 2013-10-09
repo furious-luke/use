@@ -29,3 +29,14 @@ class File(Node):
         # file itself to see if it has changed.
         else:
             return self.invalidated_crc(self.path, ctx)
+
+    ##
+    ## Perform the parent update, but also update the new
+    ## CRC value if not already done so.
+    ##
+    def update(self, ctx):
+        logging.debug('File: Updating node: ' + str(self))
+        super(File, self).update(ctx)
+        if self._new_crc is None:
+            self._new_crc = self._crc32_file(self.path)
+        logging.debug('File: Done updating node: ' + str(self))
