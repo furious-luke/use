@@ -447,17 +447,26 @@ class Context(object):
         parser = self.parser
         targets = self.arguments.targets
         _arg_map = self._arg_map
+        _node_map = self._node_map
         del self.parser
-        del self._arg_map
         self.arguments.targets = None
+        del self._arg_map
+        del self._node_map
+
+        # Set the pickle recursion limit much higher.
+        sys.setrecursionlimit(10000)
 
         with open('.use.db', 'w') as out:
             pickle.dump(self, out)
 
+        # Reset recursion limit.
+        sys.setrecursionlimit(1000)
+
         # Reset.
         self.parser = parser
-        self._arg_map = _arg_map
         self.arguments.targets = targets
+        self._arg_map = _arg_map
+        self._node_map = _node_map
 
     ##
     ## Load context from file.
