@@ -237,9 +237,9 @@ class Version(object):
     ##
     def iter_locations(self):
 
-        # If requested to skip, don't provide any locations.
-        if hasattr(self.package, '_skip'):
-            return
+#         # If requested to skip, don't provide any locations.
+#         if hasattr(self.package, '_skip'):
+#             return
 
         # Check if the user supplied locations.
         ctx = self.package.ctx
