@@ -161,7 +161,7 @@ class Rule(object):
 
         # Scan everything.
         srcs = []
-        for dir_path, dir_names, file_names in os.walk('.'):
+        for dir_path, dir_names, file_names in os.walk('.', followlinks=True):
             for fn in file_names:
                 path = os.path.join(dir_path, fn)
                 path = path[2:]
