@@ -26,6 +26,7 @@ class Installation(Node):
         self._libs = kwargs.get('libraries', [])
         self.features = []
         self._ftr_map = {}
+        self._args = {}
 
     def __repr__(self):
         text = [
@@ -602,7 +603,12 @@ class Package(object):
             text.append(str(ver))
         return self.name + '<' + ', '.join(text) + '>'
 
-    def needs_configure(self):
+    def needs_configure(self, old_pkg):
+
+        # By default just check if any of my options are different.
+        if self._args != old_pkg._args:
+            return True
+
         return False
 
     def iter_installations(self):
@@ -838,6 +844,16 @@ class Package(object):
         if base and (bin_dir or inc_dir or lib_dir):
             print 'Error: Can\'t specify both a base directory and binary, include or library directories.'
             self.ctx.exit(False)
+
+        # Cache arguments for later comparison.
+        self._args = {
+            'base': base,
+            'bin_dir': bin_dir,
+            'inc_dir': inc_dir,
+            'lib_dir': lib_dir,
+            'download': dl,
+            'all_download': all_dl,
+        }
 
     def check_download(self):
         if (self._get_arg(self.ctx.arguments, '-download') or \

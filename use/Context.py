@@ -79,7 +79,8 @@ class Context(object):
             with open('.use.db', 'r') as inf:
                 old_ctx = pickle.load(inf)
 
-            # Only update arguments if allowed.
+            # Only update arguments if nothing for that argument was
+            # given on the command line.
             for k, v in self.arguments.__dict__.iteritems():
                 if v is not None:
                     old_ctx.arguments.__dict__[k] = v
@@ -203,13 +204,15 @@ class Context(object):
         if self != old_ctx:
             sys.stdout.write('Build structure has changed.\n')
             return True
-        self._use_old_ctx(old_ctx)
 
         # Check each package for reconfiguration requests.
         for pkg in self.packages:
-            if pkg.needs_configure():
+            if pkg.needs_configure(old_ctx._pkg_map[pkg.__class__]):
                 sys.stdout.write(pkg.name + ' has changed.\n')
                 return True
+
+        # Now use the old context.
+        self._use_old_ctx(old_ctx)
 
         return False
 
