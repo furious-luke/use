@@ -6,10 +6,11 @@ class parallel(use.Feature):
 
     def check(self, inst):
         for lib_dir in inst.library_dirs:
-            with open(os.path.join(lib_dir, 'libhdf5.settings'), 'r') as setf:
-                data = setf.read()
-                if data.find('Parallel HDF5: yes') != -1:
-                    return True
+            if os.path.exists(os.path.join(lib_dir, 'libhdf5.settings')):
+                with open(os.path.join(lib_dir, 'libhdf5.settings'), 'r') as setf:
+                    data = setf.read()
+                    if data.find('Parallel HDF5: yes') != -1:
+                        return True
         return False
 
 class Default(use.Version):
