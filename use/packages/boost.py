@@ -11,7 +11,8 @@ from ..Platform import platform
 #     libraries = ['boost_filesystem']
 
 class coroutines(use.Feature):
-    libraries = [['boost_coroutine'], ['boost_coroutine-mt']]
+    libraries = [['boost_coroutine', 'boost_context'],
+                 ['boost_coroutine-mt', 'boost_context-mt']]
 
 class Default(use.Version):
     version = 'default'

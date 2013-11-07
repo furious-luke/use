@@ -96,8 +96,10 @@ class Node(Validatable):
         if ctx.node_crc(self) == None:
             return True
 
-        # Compare CRCs of sources to those I have stored.
+        # Run checks if this node is produced by a builder.
         if self.builder:
+
+            # Compare CRCs of sources to those I have stored.
             old_src_crcs = ctx.node_source_crcs(self)
             if old_src_crcs is None:
                 return True

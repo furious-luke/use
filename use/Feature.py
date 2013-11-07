@@ -26,17 +26,24 @@ class Feature(Version):
     def check(self, inst):
         logging.debug('Feature: Checking ' + self.name)
         if inst.location is not None:
-            res = self.footprint(inst.location)
+            res, bins, hdrs, libs = self.footprint(inst.location)
+            if res:
+                inst._bins.extend(zip(self.binaries, bins))
+                inst._hdrs.extend(zip(self.headers, hdrs))
+                inst._libs.extend(zip(libs[0], libs[1][0], libs[1][1]))
         else:
-            res = (True,)
+            res = True
         logging.debug('Feature: Done checking ' + self.name)
-        return res[0]
+        return res
 
     def expand(self, nodes, use_options={}, rule_options={}):
         return self.version.expand(nodes, self, use_options, rule_options)
 
     def apply(self, prods, use_options={}, rule_options={}):
-        apply(self, prods, use_options, rule_options)
+        # NOTE: Not applying because now we add the libraries and such
+        #       directly to the installation object.
+        # apply(self, prods, use_options, rule_options)
+        pass
 
     def actions(self, node, target, opts):
         return []
