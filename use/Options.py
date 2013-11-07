@@ -164,12 +164,7 @@ class OptionDict(object):
     def parse(self, ctx):
         for k, v in self._opts.iteritems():
             if isinstance(v, (Argument, ArgumentCheck)):
-                try:
-                    self._opts[k] = str(v)
-                except:
-                    import pdb
-                    pdb.set_trace()
-                    print 'hello'
+                self._opts[k] = str(v)
 
 class OptionJoin(object):
 
