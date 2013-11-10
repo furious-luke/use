@@ -167,7 +167,11 @@ class Rule(object):
                 path = path[2:]
                 match = prog.match(path)
                 if match:
-                    srcs.append(path)
+                    try:
+                        with open(path, 'r') as file:
+                            srcs.append(path)
+                    except:
+                        pass
 
         logging.debug('Rule: Found %s'%srcs)
         return srcs
