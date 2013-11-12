@@ -40,6 +40,10 @@ class gcc(use.Package):
             self._opts.add(Option('rpath_dirs', '-Wl,-rpath=', space=False, abspath=True))
         self._opts.add(Option('sources'))
         self._opts.add(Option('libraries', '-l', space=False))
+        if platform.os_name == 'darwin':
+            self._opts.add(Option('coverage', text=''))
+        else:
+            self._opts.add(Option('coverage', text='-fprofile-arcs -ftest-coverage'))
 
     ##
     ## gcc's productions. The standard gcc production will
