@@ -41,6 +41,7 @@ class mpich2(use.Package):
     default_target_node = use.File
     default_builder = use.Builder
     versions = [Default]
+    header_sub_dirs = ['include/mpi'] # Ubuntu
     environ_name = 'MPI'
 
     def build_handler(self):

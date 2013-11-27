@@ -14,4 +14,5 @@ class Default(use.Version):
 
 class openmpi(use.Package):
     versions = [Default]
+    header_sub_dirs = ['include/mpi'] # Ubuntu
     environ_name = 'MPI'
