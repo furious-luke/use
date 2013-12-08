@@ -186,7 +186,7 @@ class Context(object):
     def needs_configure(self):
 
         # Check if the user requested configuration.
-        if 'configure' in self.arguments.targets:
+        if 'configure' in self.arguments.targets or 'reconfigure' in self.arguments.targets:
             sys.stdout.write('User requested configuration.\n')
             return True
 
