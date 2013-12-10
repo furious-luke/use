@@ -23,6 +23,7 @@ class gcc(use.Package):
         super(gcc, self).__init__(*args, **kwargs)
         self._opts.binary = 'gcc'
         self._opts.add(Option('compile', '-c'))
+        self._opts.add(Option('profile', '-pg'))
         self._opts.add(Option('pic', '-fPIC'))
         self._opts.add(Option('openmp', '-fopenmp'))
         self._opts.add(Option('cxx11', '-std=c++11'))
@@ -55,6 +56,10 @@ class gcc(use.Package):
         # Setup the mapping from source extensions to destination extensions.
         if 'suffix' not in opts:
             opts['suffix'] = '.os' if opts.get('pic', False) else '.o'
+
+        # If profiling is selected, we must also have symbols.
+        if opts.get('profile', False) == True:
+            opts['symbols'] = True
 
         # Single target or multitarget?
         single = not opts.get('compile', False)
