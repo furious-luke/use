@@ -1,4 +1,4 @@
-import logging
+import logging, threading
 from .Validatable import Validatable
 
 class Node(Validatable):
@@ -15,6 +15,9 @@ class Node(Validatable):
         self._invalid = False
         self._src_crcs = None
         self._done_scan = False
+        self._job_done = False
+        self._in_queue = False
+        self._lock = threading.Lock()
 
     def __eq__(self, op):
         return repr(self) == repr(op)
@@ -24,6 +27,89 @@ class Node(Validatable):
 
     def __repr__(self):
         return 'Node'
+
+    def make_jobs(self, ctx):
+        logging.debug('Node: Creating job for: ' + str(self))
+
+        # If we've already processed this node don't do
+        # so again.
+        if self.seen:
+            logging.debug('Node: Already seen this node.')
+            return
+
+        self.seen = True
+
+        # If there are any dependencies, call them and skip myself.
+        if (self.builder and self.builder.sources) or self.dependencies:
+            logging.debug('Node: Have dependences/sources.')
+            if self.builder:
+                for src in self.builder.sources:
+                    src.make_jobs(ctx)
+            for dep in self.dependencies:
+                dep.make_jobs(ctx)
+            self.seen = True
+            return
+
+        # Add to job queue.
+        self._in_queue = True
+        ctx.job(self)
+
+    def build_job(self, ctx):
+        logging.debug('Node: Building job: ' + str(self))
+
+        # Grab validity of sources.
+        if self.builder:
+            for src in self.builder.sources:
+                if src._invalid:
+                    self._invalid = True
+                    logging.debug('Node: Parents are invalidated.')
+                    break
+
+        # Calculate my validity.
+        if not self._invalid:
+            self._invalid = self.invalidated(ctx)
+            logging.debug('Node: Is invalidated: ' + str(self._invalid))
+
+        if self._invalid:
+            self.invalidate_progenitors(ctx)
+            self.update(ctx)
+
+        self._job_done = True
+
+        for n in self.products:
+            n.ready_check(ctx)
+        for n in self.progenitors:
+            n.ready_check(ctx)
+
+    def ready_check(self, ctx):
+        self._lock.acquire()
+        logging.debug('Node: ' + str(self) + ': Checking if ready.')
+
+        # Don't do anything if we've already been processed, or
+        # if we're already in the queue.
+        if self._job_done or self._in_queue:
+            self._lock.release()
+            logging.debug('Node: ' + str(self) + ': Already done/in queue.')
+            return
+
+        # Can only process this node if all dependencies are done.
+        if self.builder:
+            for src in self.builder.sources:
+                if not src._job_done:
+                    self._lock.release()
+                    logging.debug('Node: ' + str(self) + ': Sources not built.')
+                    return
+        for dep in self.dependencies:
+            if not dep._job_done:
+                self._lock.release()
+                logging.debug('Node: ' + str(self) + ': Dependencies not built: ' + str(dep))
+                return
+
+        # Send new job to job queue.
+        logging.debug('Node: ' + str(self) + ': Sending to job queue.')
+        self._in_queue = True
+        self._lock.release()
+        ctx.job(self)
 
     ##
     ## Called to process this node.
@@ -175,6 +261,15 @@ class Node(Validatable):
             n.invalidate_progenitors(ctx)
         for n in self.progenitors:
             n.invalidate_progenitors(ctx)
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        del state['_lock']
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._lock = threading.Lock()
 
 class Always(Node):
 

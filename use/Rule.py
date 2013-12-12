@@ -146,7 +146,7 @@ class Rule(object):
             # product nodes and update product nodes with rules.
             for srcs, bldr, dsts in self.productions:
                 for src in srcs:
-                    src.products = dsts
+                    src.products.extend(dsts)
                 for dst in dsts:
                     dst.rule = self
                     dst.builder = bldr

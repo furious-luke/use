@@ -1,4 +1,5 @@
 import sys, os, argparse, pickle
+import threadpool
 from utils import getarg, load_class
 from .Use import Use
 from .Rule import *
@@ -34,6 +35,7 @@ class Context(object):
         self.parser.add_argument('targets', nargs='*', help='Specify build targets.')
         self.parser.add_argument('-s', dest='show_config', action='store_true', help='Show current configuration.')
         self.new_arguments()('--enable-download-all', dest='download_all', action='boolean', help='Download and install all dependencies.')
+        self.new_arguments()('-j', dest='num_threads', type=int, default=1, help='Number of threads.')
 
     def __eq__(self, op):
 
@@ -332,14 +334,25 @@ class Context(object):
     def build(self):
         logging.debug('Context: Building targets.')
 
-        for tgt in self.targets:
-            tgt.build(self)
+        if self.argument('num_threads') == 1:
+            for tgt in self.targets:
+                tgt.build(self)
+        else:
+            self._pool = threadpool.ThreadPool(self.argument('num_threads'))
+            for tgt in self.targets:
+                tgt.make_jobs(self)
+            self._pool.wait()
 
         # Save state.
         self.update_node_crcs()
         self.save()
 
         logging.debug('Context: Done building targets.')
+
+    def job(self, node):
+        logging.debug('Context: Adding job for node: ' + str(node))
+        # self._jobs.append(node)
+        self._pool.putRequest(threadpool.WorkRequest(node.build_job, [self]))
 
     def new_arguments(self):
         return Arguments(self)
@@ -455,6 +468,8 @@ class Context(object):
         self.arguments.targets = None
         del self._arg_map
         del self._node_map
+        if hasattr(self, '_pool'):
+            del self._pool
 
         # Set the pickle recursion limit much higher.
         sys.setrecursionlimit(10000)
