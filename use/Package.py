@@ -248,7 +248,7 @@ class Version(object):
         bin_dir = self.package._get_arg(ctx.arguments, '-bin-dir')
         inc_dir = self.package._get_arg(ctx.arguments, '-inc-dir')
         lib_dir = self.package._get_arg(ctx.arguments, '-lib-dir')
-        dl = self.package._get_arg(ctx.arguments, '-download')
+        dl = self.package.check_download(run=False)
         if base_dir or bin_dir or inc_dir or lib_dir or dl:
             if dl:
                 base_dir = self.package._dl_dst_dir
@@ -352,7 +352,7 @@ class Version(object):
         # Don't add anything if we've been given a specific location.
         ctx = self.package.ctx
         name = self.package.option_name
-        base_dir = getattr(ctx.arguments, name + '-dir', None)
+        base_dir = r(ctx.arguments, name + '-dir', None)
         bin_dir = getattr(ctx.arguments, name + '-bin-dir', None)
         inc_dir = getattr(ctx.arguments, name + '-inc-dir', None)
         lib_dir = getattr(ctx.arguments, name + '-lib-dir', None)
@@ -855,12 +855,15 @@ class Package(object):
             'all_download': all_dl,
         }
 
-    def check_download(self):
+    def check_download(self, run=True):
         if (self._get_arg(self.ctx.arguments, '-download') or \
                 getattr(self.ctx.arguments, 'download_all', None)) and \
-                not hasattr(self, '_skip'):
-            if self.url:
+                not hasattr(self, '_skip') and \
+                self.url:
+            if run:
                 self.download()
+            return True
+        return False
 
     def download(self):
         sys.stdout.write('    ' + self.name + '\n')
@@ -931,10 +934,21 @@ class Package(object):
         name = self.option_name + suf
         val = getattr(args, name, None)
         if val is None:
-            for sup in self.super_packages:
-                val = sup._get_arg(args, suf)
-                if val is not None:
-                    break
+
+            # Need to handle download triggers a bit better. For now
+            # we only return a true for download if I am the first
+            # sub package of a super package.
+            if suf == '-download':
+                for sup in self.super_packages:
+                    if len(sup.sub_packages) and sup.sub_packages[0] == self:
+                        val = sup._get_arg(args, suf)
+                        if val is not None:
+                            break
+            else:
+                for sup in self.super_packages:
+                    val = sup._get_arg(args, suf)
+                    if val is not None:
+                        break
         return val
 
     # def save(self, base_dir):
