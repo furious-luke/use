@@ -1,5 +1,8 @@
 import sys, os, argparse, pickle
-import threadpool
+try:
+    import threadpool
+except:
+    pass
 from utils import getarg, load_class
 from .Use import Use
 from .Rule import *
@@ -338,7 +341,11 @@ class Context(object):
             for tgt in self.targets:
                 tgt.build(self)
         else:
-            self._pool = threadpool.ThreadPool(self.argument('num_threads'))
+            try:
+                self._pool = threadpool.ThreadPool(self.argument('num_threads'))
+            except:
+                print '\nRequested parallel build, but threadpool not installed.\n'
+                sys.exit(1)
             for tgt in self.targets:
                 tgt.make_jobs(self)
             self._pool.wait()
