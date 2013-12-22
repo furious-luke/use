@@ -692,6 +692,7 @@ class Package(object):
             return None
 
         dir_strip = opts.get('target_strip_dirs', 0)
+        tgt_pre = opts.get('target_prefix', None)
 
         # Either single or multi.
         prods = []
@@ -705,6 +706,8 @@ class Package(object):
                     new_src = '/'.join([d for i, d in enumerate([d for d in src.split('/') if d]) if i >= dir_strip])
                     if src[0] == '/' and dir_strip == 0:
                         new_src = '/' + new_src
+                    if tgt_pre is not None:
+                        new_src = os.path.join(tgt_pre, new_src)
                     dst = os.path.join(pre, new_src)
                     cur_target = self.ctx.node(default_target_node, dst)
                     opts['targets'].append(cur_target)
