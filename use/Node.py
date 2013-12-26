@@ -1,5 +1,6 @@
 import logging, threading
 from .Validatable import Validatable
+from .Action import CommandFailed
 
 class Node(Validatable):
 
@@ -72,7 +73,10 @@ class Node(Validatable):
 
         if self._invalid:
             self.invalidate_progenitors(ctx)
-            self.update(ctx)
+            try:
+                self.update(ctx)
+            except CommandFailed:
+                return # don't allow job to be completed
 
         self._job_done = True
 

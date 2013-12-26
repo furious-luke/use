@@ -624,6 +624,11 @@ class Package(object):
                 yield ver
 
     def iter_sub_packages(self):
+        type = getattr(self.ctx.arguments, self.option_name + '-type', None)
+        if type is not None:
+            for s in self.sub_packages:
+                if s.option_name == type:
+                    return iter([s])
         return iter(self.sub_packages)
 
     def iter_dependencies(self):
@@ -825,6 +830,11 @@ class Package(object):
                     self.ctx.new_arguments()('--' + name + arg, dest=name + arg, action='store_true', help=help%self.name)
                 else:
                     self.ctx.new_arguments()('--' + name + arg, dest=name + arg, help=help%self.name)
+
+        # If this is a compound package, add options for selecting specific sub-packages.
+        if self.sub_packages:
+            self.ctx.new_arguments()('--' + name + '-type', dest=name + '-type', choices=[s.option_name for s in self.sub_packages],
+                                     help='Select package type for compound package.')
 
     ##
     ##

@@ -45,7 +45,7 @@ class Builder(object):
             except CommandFailed as ex:
                 sys.stdout.write(ex.command.stdout)
                 sys.stderr.write(ex.command.stderr)
-                self.ctx.exit()
+                self.ctx.exit(exception=ex) # keep throwing if in parallel
         self.post_update(ctx)
 
         logging.debug('Builder: Done updating.')

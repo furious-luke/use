@@ -30,6 +30,7 @@ class Context(object):
         self.crcs = {}
         self.src_crcs = {}
         self.old_bldrs = {}
+        self._exiting = False
 
         self.arguments = None
         self._def_args = {}
@@ -348,7 +349,15 @@ class Context(object):
                 sys.exit(1)
             for tgt in self.targets:
                 tgt.make_jobs(self)
-            self._pool.wait()
+            try:
+                self._pool.wait()
+            except threadpool.NoWorkersAvailable as ex:
+                pass
+            del self._pool
+
+        # Check if we had a problem.
+        if self._exiting:
+            self.exit()
 
         # Save state.
         self.update_node_crcs()
@@ -430,7 +439,17 @@ class Context(object):
         pkg_class = load_class(name)
         return self._pkg_map[pkg_class]
 
-    def exit(self, save=True):
+    def exit(self, save=True, exception=None):
+
+        # If we have a threadpool member we need to signal to them all that we are
+        # exiting and have them terminate.
+        if hasattr(self, '_pool'):
+            if not self._exiting:
+                self._exiting = True
+                logging.debug('Dismissing workers.')
+                self._pool.dismissWorkers(self.argument('num_threads'))
+            raise exception # keep throwing
+        
         if save:
             self.update_node_crcs()
             self.save()

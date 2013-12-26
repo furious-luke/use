@@ -1,6 +1,5 @@
 import copy, os
 from collections import OrderedDict
-from File import File
 from .Argument import ArgumentCheck, Argument
 from .conv import to_list
 

@@ -1,10 +1,14 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 ##
 ## The primary entry point.
 ##
 
 import os, sys, signal, logging
+try:
+    import threadpool
+except:
+    pass
 
 # If we are unable to import directly, try
 # to modify the path to do so.
@@ -90,6 +94,15 @@ ctx.find_targets()
 
 # Before building, prepare a signal handler to catch interrupts.
 def terminate(signal, frame):
+
+    # Kill any threads.
+    if hasattr(ctx, '_pool'):
+        ctx._pool.dismissWorkers(ctx.argument('num_threads'))
+        try:
+            ctx._pool.wait()
+        except threadpool.NoWorkersAvailable as ex:
+            pass
+    
     ctx.update_node_crcs()
     ctx.save()
     sys.stdout.write('\nInterrupted.\n')
