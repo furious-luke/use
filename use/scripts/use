@@ -27,7 +27,7 @@ try:
     os.remove('config.log')
 except:
     pass
-logging.basicConfig(level=logging.DEBUG, filename='config.log')
+# logging.basicConfig(level=logging.DEBUG, filename='config.log')
 
 # Where has this been launched from?
 launch_dir = os.getcwd()

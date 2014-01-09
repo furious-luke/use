@@ -347,12 +347,17 @@ class Context(object):
             except:
                 print '\nRequested parallel build, but threadpool not installed.\n'
                 sys.exit(1)
+            leafs = []
             for tgt in self.targets:
-                tgt.make_jobs(self)
-            try:
-                self._pool.wait()
-            except threadpool.NoWorkersAvailable as ex:
-                pass
+                leafs.extend(tgt.make_jobs(self))
+            for l in leafs:
+                self.job(l)
+            finished = False # do this to make sure all workers are dead
+            while not finished:
+                try:
+                    self._pool.wait()
+                except threadpool.NoWorkersAvailable as ex:
+                    finished = True
             del self._pool
 
         # Check if we had a problem.
@@ -486,7 +491,12 @@ class Context(object):
     def save(self):
 
         # Parser won't pickle.
-        parser = self.parser
+        try:
+            parser = self.parser
+        except:
+            import pdb
+            pdb.set_trace()
+            print "Why does this happen?!?!"
         targets = self.arguments.targets
         _arg_map = self._arg_map
         _node_map = self._node_map

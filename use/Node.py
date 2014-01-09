@@ -36,24 +36,26 @@ class Node(Validatable):
         # so again.
         if self.seen:
             logging.debug('Node: Already seen this node.')
-            return
+            return []
 
         self.seen = True
 
-        # If there are any dependencies, call them and skip myself.
+        # If there are any dependencies, produce the next set and
+        # return it.
         if (self.builder and self.builder.sources) or self.dependencies:
             logging.debug('Node: Have dependences/sources.')
+            leafs = []
             if self.builder:
                 for src in self.builder.sources:
-                    src.make_jobs(ctx)
+                    leafs.extend(src.make_jobs(ctx))
             for dep in self.dependencies:
-                dep.make_jobs(ctx)
-            self.seen = True
-            return
+                leafs.extend(dep.make_jobs(ctx))
+            return leafs
 
         # Add to job queue.
         self._in_queue = True
-        ctx.job(self)
+        # ctx.job(self)
+        return [self]
 
     def build_job(self, ctx):
         logging.debug('Node: Building job: ' + str(self))
@@ -88,6 +90,12 @@ class Node(Validatable):
     def ready_check(self, ctx):
         self._lock.acquire()
         logging.debug('Node: ' + str(self) + ': Checking if ready.')
+
+        # Don't build if not flagged to be built.
+        if not self.seen:
+            self._lock.release()
+            logging.debug('Node: ' + str(self) + ': Not flagged to be built.')
+            return
 
         # Don't do anything if we've already been processed, or
         # if we're already in the queue.
