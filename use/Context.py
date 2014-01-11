@@ -352,12 +352,10 @@ class Context(object):
                 leafs.extend(tgt.make_jobs(self))
             for l in leafs:
                 self.job(l)
-            finished = False # do this to make sure all workers are dead
-            while not finished:
-                try:
-                    self._pool.wait()
-                except threadpool.NoWorkersAvailable as ex:
-                    finished = True
+            try:
+                self._pool.wait()
+            except threadpool.NoWorkersAvailable as ex:
+                pass
             del self._pool
 
         # Check if we had a problem.
@@ -494,9 +492,9 @@ class Context(object):
         try:
             parser = self.parser
         except:
-            import pdb
-            pdb.set_trace()
-            print "Why does this happen?!?!"
+            # TODO: Sometimes there is an error here.
+            print "WHY IS THIS HAPPENING???"
+            return
         targets = self.arguments.targets
         _arg_map = self._arg_map
         _node_map = self._node_map
