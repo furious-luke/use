@@ -92,7 +92,11 @@ class Copy(Action):
         sys.stdout.write('Copying: ' + str(src) + ' -> ' + str(dst) + '\n')
         make_dirs(os.path.dirname(dst.path))
         if os.path.islink(src.path):
-            os.symlink(os.readlink(src.path), dst.path)
+            try:
+                os.symlink(os.readlink(src.path), dst.path)
+            except:
+                os.remove(dst.path)
+                os.symlink(os.readlink(src.path), dst.path)
         else:
             shutil.copy(src.path, dst.path)
         logging.debug('Copy: Done copying file.')
