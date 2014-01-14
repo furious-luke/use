@@ -493,8 +493,8 @@ class Context(object):
             parser = self.parser
         except:
             # TODO: Sometimes there is an error here.
-            print "WHY IS THIS HAPPENING???"
-            return
+            import pdb
+            pdb.set_trace()
         targets = self.arguments.targets
         _arg_map = self._arg_map
         _node_map = self._node_map
