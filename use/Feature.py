@@ -20,6 +20,9 @@ class Feature(Version):
         # No need for patterns.
         del self.patterns
 
+    def __repr__(self):
+        return self.name
+
     ##
     ## Check for existence of this feature.
     ##
@@ -47,6 +50,10 @@ class Feature(Version):
 
     def actions(self, node, target, opts):
         return []
+
+    def resolve_set(self, root, use_set):
+        logging.debug('Feature: Resolving set for: ' + str(self))
+        return True
 
 class FeatureUse(Use):
 

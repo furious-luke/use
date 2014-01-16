@@ -1,4 +1,5 @@
 import copy
+import logging
 from .Node import Node
 from .Argument import ArgumentCheck, Argument
 from .utils import load_class, getarg
@@ -42,11 +43,12 @@ class Use(Node):
         return not self.__eq__(op)
 
     def __repr__(self):
-        text = 'use<' + repr(self.package)
-        if self.options:
-            text += ', ' + repr(self.options)
-        text += '>'
-        return text
+        # text = 'use<' + repr(self.package)
+        # if self.options:
+        #     text += ', ' + repr(self.options)
+        # text += '>'
+        # return text
+        return 'use<' + str(self.package) + '>'
 
     def __add__(self, op):
         grp = UseGroup(self, op, 'add')
@@ -125,6 +127,14 @@ class Use(Node):
         for ftr in self.selected.features:
             ftr.apply(prods, self.options, rule_options)
 
+    def resolve_set(self, root, use_set):
+        logging.debug('Use: Resolving set for: ' + str(self))
+        from .Feature import FeatureUse
+        if isinstance(self.selected, FeatureUse):
+            return self.selected.use.selected.feature(self.selected.feature_name).resolve_set(root, use_set)
+        else:
+            return self.selected.resolve_set(root, use_set)
+
 ##
 ##
 ##
@@ -159,6 +169,14 @@ class UseGroup(object):
         grp = UseGroup(self, op, 'or')
         self.parents.append(grp)
         return grp
+
+    def __repr__(self):
+        if self.op == 'add':
+            return str(self.left) + ' + ' + str(self.right)
+        elif self.op == 'and':
+            return '(' + str(self.left) + ')' + ' & ' + '(' + str(self.right) + ')'
+        else:
+            return '(' + str(self.left) + ')' + ' | ' + '(' + str(self.right) + ')'
 
     @property
     def found(self):
@@ -198,7 +216,7 @@ class UseGroup(object):
                 else:
                     self.right.apply(prods)
 
-    def expand(self, nodes, options):
+    def expand(self, nodes, options={}):
         if self.op == 'add':
             prods = self.left.expand(nodes, options)
             if prods is None:
