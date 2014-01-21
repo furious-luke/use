@@ -100,6 +100,12 @@ class Installation(Node):
     def options(self):
         return self.version.options()
 
+    def resolve(self):
+        return self.version.resolve(self)
+
+    def resolve_set(self, root, use_set):
+        return self.version.resolve_set(root, use_set, self)
+
 ##
 ## Represents a package version. Packages may require
 ## different methods for configuration depending on
@@ -520,6 +526,12 @@ class Version(object):
         bldr = getattr(self, 'default_builder', self.package.default_builder)
         return bldr(sources, targets, self._actions(sources, targets))
 
+    def resolve(self, inst):
+        return self.package.resolve(inst, self)
+
+    def resolve_set(self, root, use_set, inst):
+        return self.package.resolve_set(root, use_set, inst, self)
+
 ##
 ## Package configuration. Embodies the process of locating
 ## specific packages and storing all locations with as much
@@ -598,10 +610,11 @@ class Package(object):
         return hash(self.__class__)
 
     def __repr__(self):
-        text = []
-        for ver in self.versions:
-            text.append(str(ver))
-        return self.name + '<' + ', '.join(text) + '>'
+        # text = []
+        # for ver in self.versions:
+        #     text.append(str(ver))
+        # return self.name + '<' + ', '.join(text) + '>'
+        return self.name
 
     def needs_configure(self, old_pkg):
 
@@ -968,27 +981,8 @@ class Package(object):
                         break
         return val
 
-    # def save(self, base_dir):
-    #     base = os.path.join(base_dir, 'packages')
-    #     make_dirs(base)
-    #     with open(os.path.join(base, self.name + '.db'), 'w') as out:
+    def resolve(self, inst, ver):
+        return True
 
-    #         # Dump feature names we used.
-    #         pickle.dump(self.features.keys(), out)
-
-    #         # Dump the options.
-    #         pickle.dump(self._opts, out)
-
-    #         # Dump the versions and installations.
-    #         ver_list = []
-    #         for ver in self.versions:
-    #             cur = [ver.version]
-    #             inst_list = []
-    #             for inst in ver.installations:
-    #                 inst_list.append([inst.location, inst._bins, inst._hdrs, inst._libs, inst._ftr_map.keys()])
-    #             cur.append(inst_list)
-    #             ver_list.append(cur)
-    #         pickle.dump(ver_list, out)
-
-    # def load(self, base_dir):
-    #     pass
+    def resolve_set(self, root, use_set, inst, ver):
+        return True
