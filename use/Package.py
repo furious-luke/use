@@ -697,6 +697,7 @@ class Package(object):
             return None
 
         dir_strip = opts.get('target_strip_dirs', 0)
+        suf_dir_strip = opts.get('target_strip_suf_dirs', None)
         tgt_pre = opts.get('target_prefix', None)
 
         # Either single or multi.
@@ -708,7 +709,10 @@ class Package(object):
                 if target is None:
                     src_fn, src_suf = os.path.splitext(node.path)
                     src = src_fn + (suf if suf is not None else src_suf)
-                    new_src = '/'.join([d for i, d in enumerate([d for d in src.split('/') if d]) if i >= dir_strip])
+                    new_src_lst = [d for i, d in enumerate([d for d in src.split('/') if d]) if i >= dir_strip]
+                    if suf_dir_strip is not None:
+                        new_src_lst = new_src_lst[:-1 - suf_dir_strip] + [new_src_lst[-1]]
+                    new_src = '/'.join(new_src_lst)
                     if src[0] == '/' and dir_strip == 0:
                         new_src = '/' + new_src
                     if tgt_pre is not None:
