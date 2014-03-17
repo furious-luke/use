@@ -740,7 +740,11 @@ class Package(object):
                               (cur_target,)))
         else:
             target = opts.get('target', None)
-            target = os.path.join(pre, target)
+            try:
+                target = os.path.join(pre, target)
+            except:
+                import pdb
+                pdb.set_trace()
             target = self.ctx.node(default_target_node, target)
             opts['target'] = target
             prods.append((list(nodes),

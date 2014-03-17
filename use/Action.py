@@ -25,8 +25,9 @@ class Action(object):
 ##
 class Command(Action):
 
-    def __init__(self, command, **kwargs):
+    def __init__(self, command, bin, **kwargs):
         self.command = command
+        self.binary = bin
         self.create_dirs = kwargs.get('create_dirs', True)
         self.show_command = kwargs.get('show_command', True)
         self.show_stdout = kwargs.get('show_stdout', False)
@@ -50,7 +51,7 @@ class Command(Action):
         if opts is None:
             opts = {}
         if isinstance(self.command, OptionParser):
-            return self.command(**opts)
+            return self.command(self.binary, **opts)
         else:
             return self.command.format(opts)
 

@@ -9,4 +9,3 @@ class gxx(gcc.gcc):
     def __init__(self, *args, **kwargs):
         super(gxx, self).__init__(*args, **kwargs)
         self.name = 'g++'
-        self._opts.binary = 'g++'

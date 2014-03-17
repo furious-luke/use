@@ -83,17 +83,16 @@ class Option(object):
 ##
 class OptionParser(object):
 
-    def __init__(self, binary=''):
-        self.binary = binary
+    def __init__(self):
         self._opts = OrderedDict()
 
     def add(self, opt):
         self._opts[opt.name] = opt
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, bin, *args, **kwargs):
 
         # Start with the binary name.
-        str_list = [self.binary]
+        str_list = [bin]
 
         # The user may have given us a string to process
         # instead of an option dictionary.

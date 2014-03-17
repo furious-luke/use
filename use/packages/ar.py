@@ -7,7 +7,7 @@ class Default(use.Version):
     binaries = ['ar']
 
     def actions(self, inst, sources, targets=[], options={}):
-        return [Command(self.package.options())]
+        return [Command(self.package.options(), inst.binaries[0])]
 
 class ar(use.Package):
     default_target_node = use.File
@@ -16,7 +16,6 @@ class ar(use.Package):
 
     def __init__(self, *args, **kwargs):
         super(ar, self).__init__(*args, **kwargs)
-        self._opts.binary = 'ar'
         self._opts.add(Option('add', 'rs'))
         self._opts.add(Option('targets'))
         self._opts.add(Option('sources'))
