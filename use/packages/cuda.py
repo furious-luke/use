@@ -10,6 +10,8 @@ from ..conv import to_list, to_iter
 
 class default(use.Version):
     binaries = ['nvcc']
+    headers = ['cuda.h', 'cuda_runtime.h']
+    libraries = ['cudart']
 
     def actions(self, inst, sources, targets=[], options={}):
         return [Command(self.package.options(), inst.binaries[0])]
