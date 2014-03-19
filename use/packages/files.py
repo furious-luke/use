@@ -6,7 +6,7 @@ class copy(use.Feature):
 
 class run(use.Feature):
     def actions(self, sources, targets=[], options={}):
-        return [use.actions.Command(sources.path, show_command=False, show_stdout=True)]
+        return [use.actions.Command(sources.path, None, show_command=False, show_stdout=True)]
 
 class Default(use.Version):
     version = 'default'

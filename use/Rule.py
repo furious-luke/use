@@ -147,6 +147,7 @@ class Rule(object):
             for srcs, bldr, dsts in self.productions:
                 for src in srcs:
                     src.products.extend(dsts)
+                    assert src not in dsts, 'A production rule has resulted in a product that depends on itself: %s'%(str(self))
                 for dst in dsts:
                     dst.rule = self
                     dst.builder = bldr
