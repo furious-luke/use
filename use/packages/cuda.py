@@ -26,6 +26,7 @@ class cuda(use.Package):
         self._opts.add(Option('compile', '-c'))
         self._opts.add(Option('optimise', '-O', space=False))
         self._opts.add(Option('symbols', '-g'))
+        self._opts.add(Option('pic', '-Xcompiler \'-fPIC\''))
         self._opts.add(Option('define', '-D', space=False))
         self._opts.add(Option('targets', '-o'))
         self._opts.add(Option('header_dirs', '-I'))
