@@ -13,6 +13,8 @@ from .File import File
 from .conv import to_list
 import logging
 
+__all__ = ['Context']
+
 ##
 ## Wraps a single build context. The context manages the
 ## overall run, including commencement and storage. (??)

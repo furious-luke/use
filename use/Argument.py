@@ -117,18 +117,18 @@ class ArgumentCheck(object):
     def __eq__(self, op):
         return self.compare(op)
 
-    def __and__(self, op):
-        return ArgumentCheck('and', self, op)
-
     def __ne__(self, op):
         return not self.compare(op)
+
+    def __and__(self, op):
+        return ArgumentCheck('and', self, op)
 
     def __str__(self):
         assert self.op in ['add']
         return str(self.value())
 
     def value(self):
-        left_val = self.left.value() if isinstance(self.left, Argument) else self.left
+        left_val  = self.left.value()  if isinstance(self.left,  Argument) else self.left
         right_val = self.right.value() if isinstance(self.right, Argument) else self.right
         if self.op == 'eq':
             return left_val == right_val

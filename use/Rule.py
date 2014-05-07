@@ -37,7 +37,7 @@ class RuleList(object):
 
 class Rule(object):
 
-    def __init__(self, source, use, cond=None, options=None):
+    def __init__(self, source, use, cond=None, opts=None):
         super(Rule, self).__init__()
         self.condition = cond
         self.source = source
@@ -45,7 +45,7 @@ class Rule(object):
         self.product_nodes = []
         self.productions = []
         self.use = use
-        self.options = options
+        self.options = opts
 
     def __eq__(self, op):
         if type(self) != type(op):
