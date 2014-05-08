@@ -79,11 +79,12 @@ class Argument(object):
     def __and__(self, op):
         return ArgumentCheck('and', self, op)
 
-    def __deepcopy__(self, memo):
-        return Argument(self.name, self.context, self.use)
-
     def __add__(self, op):
         return ArgumentCheck('add', self, op)
+
+    def __deepcopy__(self, memo):
+        # Don't actually deepcopy anything.
+        return Argument(self.name, self.context, self.use)
 
     def __str__(self):
         return str(self.value())
