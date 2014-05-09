@@ -31,6 +31,8 @@ class cuda(use.Package):
         self._opts.add(Option('targets', '-o'))
         self._opts.add(Option('header_dirs', '-I'))
         self._opts.add(Option('library_dirs', '-L'))
+        if platform.os_name != 'darwin':
+            self._opts.add(Option('rpath_dirs', '-Xlinker -rpath=', space=False, abspath=True))
         self._opts.add(Option('sources'))
         self._opts.add(Option('libraries', '-l', space=False))
 
