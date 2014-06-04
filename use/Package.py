@@ -123,6 +123,7 @@ class Version(object):
         if not hasattr(self, 'version'):
             ver = str(self.__class__)
             self.version = ver[ver.rfind('.') + 1:ver.rfind('\'')].lower()
+        self.name = self.version
 
         # Location handling.
         self._potential_installations = []
@@ -161,6 +162,11 @@ class Version(object):
         for inst in self.installations:
             text.append(str(inst))
         return self.version + '<' + ', '.join(text) + '>'
+
+    def install(self, inst_dir, work_dir=None):
+        inst = self.installer()
+        inst.set_dirs(work_dir, inst_dir)
+        inst()
 
     def iter_dependencies(self):
         done = set()
@@ -549,6 +555,7 @@ class Package(object):
         self.environ_name = self.environ_name if hasattr(self, 'environ_name') else self.option_name.upper()
         self.features = {} # must come before versions
         self.versions = [v(self) for v in self.versions] if hasattr(self, 'versions') else []
+        self._ver_map = dict([(v.name, v) for v in self.versions])
         self._opts = OptionParser()
         self.dependencies = [self.ctx.load_package(d, True) for d in (self.dependencies if hasattr(self, 'dependencies') else [])]
         self.uses = []
@@ -615,6 +622,9 @@ class Package(object):
         #     text.append(str(ver))
         # return self.name + '<' + ', '.join(text) + '>'
         return self.name
+
+    def find_version(self, name):
+        return self._ver_map.get(name, None)
 
     def needs_configure(self, old_pkg):
 

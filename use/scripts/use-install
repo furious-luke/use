@@ -1,0 +1,67 @@
+#!/usr/bin/env python
+
+##
+## The primary entry point.
+##
+
+import os, sys, signal, logging
+
+# If we are unable to import directly, try
+# to modify the path to do so.
+try:
+    from use.Installer import Installer
+except:
+    sys.path.insert(0, os.path.join(sys.path[0], '..', '..'))
+    from use.Installer import Installer
+from use.utils import load_class
+from use.Context import Context
+
+# Setup debugging logging.
+try:
+    os.remove('install.log')
+except:
+    pass
+logging.basicConfig(level=logging.DEBUG, filename='install.log')
+
+# Parse input.
+if len(sys.argv) == 0:
+    print 'Nothing to install.'
+    sys.exit(0)
+pkg = sys.argv[1].split('.')[0]
+ver = sys.argv[1].split('.')[-1]
+if ver == pkg:
+    ver = None
+
+# Try to load the package.
+ctx = Context()
+try:
+    pkg_class = load_class(pkg)
+    pkg = pkg_class(ctx)
+except Exception as e:
+    print 'Failed to load package class.'
+    logging.debug(str(e))
+    sys.exit(1)
+
+# Try to locate the version, if there is one.
+if ver:
+    try:
+        ver = pkg.find_version( ver )
+    except Exception as e:
+        print 'Failed to locate version.'
+        logging.debug(str(e))
+        sys.exit(1)
+else:
+    ver = pkg.versions[0]
+
+# Where has this been launched from?
+launch_dir = os.getcwd()
+
+# Before building, prepare a signal handler to catch interrupts.
+def terminate(signal, frame):
+    sys.stdout.write('\nInterrupted.\n')
+    sys.exit(0)
+signal.signal(signal.SIGINT, terminate)
+
+# Try to perform the install.
+print 'Going to install: %s (%s)'%(pkg.name, ver.name)
+ver.install('/tmp/iraf', '/tmp/iraf-work')

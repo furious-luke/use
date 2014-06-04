@@ -1,4 +1,4 @@
-import sys, os, shlex, errno
+import sys, os, shlex, errno, tempfile
 from subprocess import Popen, PIPE
 
 def getarg(name, args, kwargs, required=True):
