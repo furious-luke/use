@@ -107,8 +107,14 @@ class Rule(object):
         logging.debug('Rule: Looking at source %s'%repr(self.source))
 
         # If our source is a string then locate any matching files.
-        if isinstance(self.source, basestring):
-            files = self.match_sources(self.source)
+        if isinstance(self.source, (basestring, tuple)):
+            if isinstance(self.source, tuple):
+                dir = self.source[0]
+                src = self.source[1]
+            else:
+                dir = '.'
+                src = self.source
+            files = self.match_sources(dir, src)
             self._src_nodes = [ctx.file(f) for f in files]
 
     def scan(self, ctx):
@@ -154,7 +160,7 @@ class Rule(object):
 
         logging.debug('Rule: Done expanding rule.')
 
-    def match_sources(self, expr):
+    def match_sources(self, dir, expr):
         logging.debug('Rule: Matching files.')
 
         # Compile the regular expression.
@@ -162,11 +168,14 @@ class Rule(object):
 
         # Scan everything.
         srcs = []
-        for dir_path, dir_names, file_names in os.walk('.', followlinks=True):
+        for dir_path, dir_names, file_names in os.walk(dir, followlinks=True):
+            logging.debug('Rule:  In directory: %s'%dir_path)
             for fn in file_names:
                 path = os.path.join(dir_path, fn)
-                path = path[2:]
-                match = prog.match(path)
+                expr_path = path[len(dir):]
+                if expr_path[0] == os.path.sep:
+                    expr_path = expr_path[1:]
+                match = prog.match(expr_path)
                 if match:
                     try:
                         with open(path, 'r') as file:
