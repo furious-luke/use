@@ -154,16 +154,47 @@ class OptionDict(object):
     def __add__(self, op):
         return OptionJoin(self, op)
 
-    def get(self):
-        if bool(self.condition):
-            return copy.deepcopy(self._opts)
-        else:
-            return {}
+    ##
+    ## Get a copy of our options. We need to parse the
+    ## resulting options if we are the first entry.
+    ##
+    def get(self, depth=0):
 
-    def parse(self, ctx):
-        for k, v in self._opts.iteritems():
+        # Copy our options if we are enabled.
+        if bool(self.condition):
+            opts = copy.deepcopy(self._opts)
+        else:
+            opts = {}
+
+        # If we're the ground level, parse the options.
+        if depth == 0:
+            self.parse(opts)
+
+        return opts
+
+    ##
+    ## Convert argument based options. Options may be dependent
+    ## on arguments, this method repopulates the option values in
+    ## the dictionary with evaluated arguments.
+    ##
+    def parse(self, opts):
+
+        # First replace any argument instances.
+        for k, v in opts.iteritems():
             if isinstance(v, (Argument, ArgumentCheck)):
-                self._opts[k] = str(v)
+                opts[k] = str(v)
+
+        # Now evaluate any values that need to be replaced. Keep
+        # track of whether any substitutions were made in order to
+        # recursively expand.
+        done = False
+        while not done:
+            done = True
+            for k, v in opts.iteritems():
+                if isinstance(v, basestring):
+                    opts[k] = v.format(**opts)
+                    if opts[k] != v:
+                        done = False
 
 class OptionJoin(object):
 
