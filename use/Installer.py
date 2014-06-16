@@ -1,4 +1,5 @@
-import os, subprocess, shlex, shutil, tempfile, logging
+import os, subprocess, shlex, shutil, tempfile, logging, sys
+from utils import make_dirs
 
 __all__ = ['Installer']
 
@@ -11,13 +12,17 @@ class Installer(object):
     build_success_fname = 'build_success.use'
     install_success_fname = 'build_success.use'
 
-    def __init__(self):
+    def __init__(self, prog=False):
+        self._prog = prog
         self.set_dirs()
+        self.name = self.name if hasattr(self, 'name') else self.__class__.__name__
 
     def __call__(self):
+        logging.debug('Installer: Installing using %s.'%self.name)
         pkg_path = self.download_package(self.url)
         src_dir = self.extract_package(pkg_path)
         self.run_commands(self.commands)
+        logging.debug('Installer: Done installing using %s.'%self.name)
 
     def set_dirs(self, work_dir=None, install_dir=None):
         self.work_dir = work_dir
@@ -31,9 +36,9 @@ class Installer(object):
             self._tmp_dir = os.path.join(self.work_dir, 'tmp')
             self._src_dir = os.path.join(self.work_dir, 'src')
             self._bld_dir = os.path.join(self.work_dir, 'bld')
-            os.mkdir(self._tmp_dir)
-            os.mkdir(self._src_dir)
-            os.mkdir(self._bld_dir)
+            make_dirs(self._tmp_dir)
+            make_dirs(self._src_dir)
+            make_dirs(self._bld_dir)
             self._bld_succ_path = os.path.join(self.work_dir, self.build_success_fname)
             self._ins_succ_path = os.path.join(self.work_dir, self.install_success_fname)
 
@@ -62,7 +67,18 @@ class Installer(object):
         try:
             logging.debug('Installer: retrieving "%s" to "%s"'%(url, tmp_path))
             import urllib
-            urllib.urlretrieve(url, tmp_path)
+            if self._prog:
+                sys.stdout.write('Downloading "%s":\n'%url)
+                sys.stdout.write('  |----------------------------------------------------------------------|\n')
+                sys.stdout.write('  |')
+                sys.stdout.flush()
+                self._perc = 0.0
+                self._incr = 1.0/70.0
+                urllib.urlretrieve(url, tmp_path, self._progress)
+            else:
+                urllib.urlretrieve(url, tmp_path)
+            if self._prog:
+                sys.stdout.write('|\n')
         except Exception as e:
             logging.debug('Installer: failed to download file: %s'%str(e))
             return None
@@ -161,3 +177,10 @@ class Installer(object):
                             return False
 
         return True
+    
+    def _progress(self, n_blocks, block_size, total_size):
+        perc = (n_blocks*block_size)/float(total_size)
+        while perc >= self._perc + self._incr:
+            sys.stdout.write('=')
+            sys.stdout.flush()
+            self._perc += self._incr

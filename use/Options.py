@@ -9,6 +9,7 @@ from .conv import to_list
 class Option(object):
 
     def __init__(self, name=None, short_opts=None, long_opts=None, **kwargs):
+        assert short_opts or long_opts
         self.name = name
         self.short_opts = to_list(short_opts)
         self.long_opts = to_list(long_opts)
@@ -30,7 +31,7 @@ class Option(object):
     def __hash__(self):
         return hash(self.name)
 
-    def __call__(self, value, opts, short=True):
+    def __call__(self, value, opts={}, short=True):
         opt = self._opt(short)
         str_list = []
         if isinstance(value, bool):

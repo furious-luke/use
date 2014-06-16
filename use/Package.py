@@ -164,9 +164,11 @@ class Version(object):
         return self.version + '<' + ', '.join(text) + '>'
 
     def install(self, inst_dir, work_dir=None):
-        inst = self.installer()
+        logging.debug('Version: Installing %s.'%self.name)
+        inst = self.installer(prog=True)
         inst.set_dirs(work_dir, inst_dir)
         inst()
+        logging.debug('Version: Installing %s done.'%self.name)
 
     def iter_dependencies(self):
         done = set()

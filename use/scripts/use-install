@@ -58,6 +58,7 @@ launch_dir = os.getcwd()
 
 # Before building, prepare a signal handler to catch interrupts.
 def terminate(signal, frame):
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
     sys.stdout.write('\nInterrupted.\n')
     sys.exit(0)
 signal.signal(signal.SIGINT, terminate)
