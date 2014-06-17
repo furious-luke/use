@@ -566,8 +566,7 @@ class Context(object):
 
     def node(self, node_class, *args, **kwargs):
         n = node_class(*args, **kwargs)
-        rep = repr(n)
-        return self._node_map.setdefault(rep, n)
+        return self._node_map.setdefault(n.key, n)
 
     def file(self, *args, **kwargs):
         return self.node(File, *args, **kwargs)

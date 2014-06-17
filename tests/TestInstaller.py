@@ -142,9 +142,6 @@ def test_extract_package_zip():
     entries = os.listdir(path)
     assert_in(os.path.basename(name), entries)
 
-def test_extract_package_named():
-    assert_equals(1, 0)
-
 def test_extract_package_exists():
     inst = Installer()
 
@@ -169,6 +166,3 @@ def test_extract_package_exists():
     path = inst.extract_package(pkg_path)
     assert_equals(path, os.path.join(inst._src_dir, 'tf'))
     assert_equals(mtime, os.path.getmtime(path))
-
-def test_extract_package_force():
-    assert_equals(1, 0)

@@ -1,11 +1,12 @@
-import logging, threading
+import logging, threading, datetime, time
 from .Validatable import Validatable
 from .Action import CommandFailed
 
 class Node(Validatable):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, key=None, *args, **kwargs):
         super(Node, self).__init__()
+        self.key = key
         self.rule = None
         self.builder = None
         self.products = []
@@ -19,6 +20,13 @@ class Node(Validatable):
         self._job_done = False
         self._in_queue = False
         self._lock = threading.Lock()
+
+        self._mtime = None
+        self._ex_mtime = None
+        self._crc = None
+        self._ex_crc = None
+        self._outdated = False
+        self._modified = False
 
     def __eq__(self, op):
         return repr(self) == repr(op)
@@ -282,6 +290,64 @@ class Node(Validatable):
     def __setstate__(self, state):
         self.__dict__.update(state)
         self._lock = threading.Lock()
+
+    @property
+    def crc(self):
+        return self._crc
+
+    @crc.setter
+    def crc(self, val):
+        self._crc = val
+        self._update_modified()
+
+    @property
+    def mtime(self):
+        return self._mtime
+
+    @mtime.setter
+    def mtime(self, val):
+        self._mtime = val
+        self._update_outdated()
+
+    def _update_outdated(self):
+
+        # Have a valid timestamp.
+        if self._mtime is not None:
+            if self._ex_mtime is not None:
+                if self._ex_mtime > self._mtime:
+                    raise 'Error: Timestamp mismatch.'
+                self._outdated = self._mtime > self._ex_mtime
+            else:
+                self._outdated = True
+
+        # If not, check for missing node.
+        else:
+            self._outdated = self._ex_mtime is not None
+
+    def _update_modified(self):
+
+        # Have a new CRC.
+        if self._crc is not None:
+            self._modified = self._ex_crc != self._crc
+
+        # If not, check for a missing node.
+        else:
+            self._modified = self._ex_crc is not None
+
+    def load_data(self, data):
+        if data is None:
+            data = {}
+        self._ex_mtime = datetime.datetime.strptime(data['mtime'], '%c') if 'mtime' in data.keys() else None
+        self._ex_crc = data['crc'] if 'crc' in data.keys() else None
+        self._update_outdated()
+        self._update_modified()
+
+    def save_data(self):
+        return {
+            'key': self.key,
+            'mtime': self._mtime,
+            'crc': self._crc
+            }
 
 class Always(Node):
 

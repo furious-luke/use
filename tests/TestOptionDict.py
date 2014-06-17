@@ -1,6 +1,6 @@
 import os
 from nose.tools import *
-from use.Options import OptionDict
+from use.Options import OptionDict, parse
 from use.Argument import Argument
 
 class Context(object):
@@ -15,12 +15,6 @@ def test_init():
     od = OptionDict('hello', one='1', two='2')
     assert_equal(od.condition, 'hello')
     assert_equal(od._opts, {'one': '1', 'two': '2'})
-
-def test_eq():
-    assert_equal(1, 0)
-
-def test_add():
-    assert_equal(1, 0)
 
 def test_get_depth_0():
     one = Argument('test', Context())
@@ -45,18 +39,15 @@ def test_get_disabled():
 def test_parse_argument():
     one = Argument('test', Context())
     od = OptionDict(one=one, two='2')
-    od.parse(od._opts)
+    parse(od._opts)
     assert_equals(od._opts, {'one': 'arg_val', 'two': '2'})
-
-def test_parse_argument_check():
-    assert_equal(1, 0)
 
 def test_parse_format():
     od = OptionDict(one='1', two='2{one}')
-    od.parse(od._opts)
+    parse(od._opts)
     assert_equals(od._opts, {'one': '1', 'two': '21'})
 
 def test_parse_format_recursive():
     od = OptionDict(one='1', two='2{one}', three='3{one}{two}')
-    od.parse(od._opts)
+    parse(od._opts)
     assert_equals(od._opts, {'one': '1', 'two': '21', 'three': '3121'})

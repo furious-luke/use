@@ -4,13 +4,16 @@ from .Node import *
 class File(Node):
 
     def __init__(self, path, *args, **kwargs):
-        Node.__init__(self, *args, **kwargs)
+        Node.__init__(self, self.norm_path(path), *args, **kwargs)
         self.path = path
         self.abspath = os.path.abspath(path)
         self.absdirname = os.path.dirname(self.abspath)
 
     def __repr__(self):
         return self.path
+
+    def norm_path(self, path):
+        return os.path.abspath(path)
 
     def invalidated(self, ctx):
 
