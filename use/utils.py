@@ -1,5 +1,6 @@
 import sys, os, shlex, errno, tempfile
 from subprocess import Popen, PIPE
+from Argument import ArgumentCheck
 
 def getarg(name, args, kwargs, required=True):
     if name in kwargs:
@@ -40,3 +41,16 @@ def make_dirs(path):
             pass
         else:
             raise
+
+def conditions_equal(x, y):
+    if type(x) != type(y):
+        return False
+    elif isinstance(x, ArgumentCheck):
+        if not x.compare(y):
+            return False
+    elif isinstance(y, ArgumentCheck):
+        if not y.compare(x):
+            return False
+    else:
+        return x == y
+    return True

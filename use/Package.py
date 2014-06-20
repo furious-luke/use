@@ -581,6 +581,14 @@ class Package(object):
             self.sub_packages = []
         self.super_packages = []
 
+    ##
+    ## Test for compatibility of option sets. Under certain conditions
+    ## the same package may or may not need to be reconfigured, this
+    ## method tests if two sets of options need to be reconfigured.
+    ##
+    def compatible(self, opts_a, opts_b):
+        return True
+
     @property
     def url(self):
         for ver in self.versions:

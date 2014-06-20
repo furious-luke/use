@@ -11,6 +11,7 @@ from .Argument import Arguments
 from .Options import OptionDict
 from .File import File
 from .conv import to_list
+from .DB import DB
 import logging
 
 __all__ = ['Context']
@@ -22,6 +23,8 @@ __all__ = ['Context']
 class Context(object):
 
     def __init__(self):
+        self._db = DB()
+
         self.packages = []
         self.rules = []
         self.uses = []
@@ -192,24 +195,23 @@ class Context(object):
     ##
     ##
     def needs_configure(self):
+        logging.debug('Context: Checking if we need to to reconfigure.')
 
         # Check if the user requested configuration.
         if 'configure' in self.arguments.targets or 'reconfigure' in self.arguments.targets:
+            logging.debug('Context:  User requested configuration.')
             sys.stdout.write('User requested configuration.\n')
             return True
 
         # If we have not run before then definitely configure.
-        if not os.path.exists('.use.db'):
+        if not _db.exists():
+            logging.debug('Context:  No prior configuration to use.')
             sys.stdout.write('No prior configuration to use.\n')
             return True
 
         # Check if anything has changed in the build structure.
-        if os.path.exists('.use.db'):
-            with open('.use.db', 'r') as inf:
-                old_ctx = pickle.load(inf)
-        else:
-            old_ctx = None
-        if self != old_ctx:
+        if self.structure_changed():
+            logging.debug('Context:  Build structure has changed.')
             sys.stdout.write('Build structure has changed.\n')
             return True
 
@@ -223,6 +225,42 @@ class Context(object):
         self._use_old_ctx(old_ctx)
 
         return False
+
+    ##
+    ## Check if anything has changed in the build structure. In order
+    ## to use the existing set of packages we must be able to confirm
+    ## that the new set of Rules is compatible with the old set. This
+    ## will check Uses and Packages too.
+    ##
+    def has_graph_changed(self):
+
+        # If there are different numbers of rules, just take it
+        # that the graphs are different enough to reconfigure.
+        if len(self.rules) != len(self._ex_rules):
+            return True
+
+        # Use recursion to find a compatible isomorphism from the
+        # current set of rules to the old one.
+        def _find_compat(rules, ex_rules):
+            if len(rules) == 0:
+                return {}
+            r = rules[0]
+            for ii in range(len(l)):
+                if r.is_compatible(ex_rules[ii]):
+                    m = _find_compat(rules[1:], ex_rules[:ii] + ex_rules[ii + 1:])
+                    if m is not None:
+                        m[r] = ex_rules[ii]
+                        return m
+            return None
+
+        # First, find the list of tree roots for old and new.
+        roots = [r for r in self.rules if not r.children]
+        ex_roots = [r for r in self._ex_rules if not r.children]
+
+        # Use the above function to determine if the rules graph
+        # has changed form.
+        mapping = _find_compat(self.rules, self._ex_rules)
+        return mapping is not None
 
     ##
     ## Scan files for rule sources.

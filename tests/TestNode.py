@@ -31,7 +31,7 @@ def test_mtime_property():
     assert_equal(n._outdated, False)
 
 def test_update_outdated_newer():
-    n = Node'a'()
+    n = Node('a')
     n._ex_mtime = datetime.datetime.now()
     time.sleep(0.1)
     n._mtime = datetime.datetime.now()

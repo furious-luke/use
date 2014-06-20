@@ -1,4 +1,4 @@
-import sqlite3
+import os, sqlite3
 
 class DB(object):
 
@@ -8,6 +8,9 @@ class DB(object):
         self._conn.row_factory = sqlite3.Row
         self._init_db()
         self._buf = []
+
+    def exists(self):
+        return os.path.exists(fn)
 
     def load_node(self, node):
         cur = self._conn.cursor()
@@ -25,6 +28,19 @@ class DB(object):
                   VALUES('{key}', {mtime}, {crc});'''.format(**data)
         self._buf.append(str)
 
+    def load_uses(self):
+        uses = []
+        cur = self._conn.cursor()
+        cur.execute('SELECT * FROM uses')
+        for data in cur:
+            uses.append(Use(data))
+        cur.close()
+        return uses
+
+    def save_uses(self, uses):
+        for use in uses:
+            pass
+
     def flush(self):
         if self._buf:
             cur = self._conn.cursor()
@@ -36,3 +52,5 @@ class DB(object):
     def _init_db(self):
         self._conn.execute('''CREATE TABLE IF NOT EXISTS nodes
                               (key TEXT PRIMARY KEY, mtime TEXT, crc TEXT)''')
+        self._conn.execute('''CREATE TABLE IF NOT EXISTS uses
+                              (

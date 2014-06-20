@@ -2,6 +2,7 @@ import re, os
 from .Node import Node
 from .File import File
 from .conv import to_list
+from .utils import conditions_equal
 import logging
 
 __all__ = ['Rule', 'RuleList']
@@ -50,32 +51,16 @@ class Rule(object):
     def __eq__(self, op):
         if type(self) != type(op):
             return False
-
-        # TODO: Fix this condition compare.
-        if type(self.condition) != type(op.condition):
+        elif self.source != op.source:
             return False
-        if isinstance(self.condition, ArgumentCheck):
-            if not self.condition.compare(op.condition):
-                return False
-        elif isinstance(op.condition, ArgumentCheck):
-            if not op.condition.coimpare(self.condition):
-                return False
-        elif self.condition != op.condition:
+        elif self.use != op.use:
             return False
-
-        # Sources must be the same.
-        if self.source != op.source:
+        elif not conditions_equal(self.condition, op.condition):
             return False
-
-        # The uses must match.
-        if self.use != op.use:
+        elif self.options != op.options:
             return False
-
-        # Options must match.
-        if self.options != op.options:
-            return False
-
-        return True
+        else:
+            return True
 
     def __ne__(self, op):
         return not self.__eq__(op)
@@ -99,6 +84,11 @@ class Rule(object):
 
     def __add__(self, op):
         return RuleList(self, op)
+
+    def compatible(self, other):
+        if self.use != other.use:
+            return False
+        return self.use.compatible(other.use, self.options)
 
     ##
     ## Scan for files.
@@ -176,3 +166,6 @@ class Rule(object):
 
         logging.debug('Rule: Found %s'%srcs)
         return srcs
+
+    def is_compatible(self, rules):
+        pass

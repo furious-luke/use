@@ -2,7 +2,7 @@ import copy
 import logging
 from .Node import Node
 from .Argument import ArgumentCheck, Argument
-from .utils import load_class, getarg
+from .utils import load_class, getarg, conditions_equal
 
 ##
 ## Represents a package installation with options.
@@ -22,19 +22,8 @@ class Use(Node):
     def __eq__(self, op):
         if self.package != op.package:
             return False
-
-        # TODO: Fix this condition compare.
-        if type(self.condition) != type(op.condition):
+        if not conditions_equal(self.condition, op.condition):
             return False
-        if isinstance(self.condition, ArgumentCheck):
-            if not self.condition.compare(op.condition):
-                return False
-        elif isinstance(op.condition, ArgumentCheck):
-            if not op.condition.coimpare(self.condition):
-                return False
-        elif self.condition != op.condition:
-            return False
-
         if self.options != op.options:
             return False
         return True
@@ -67,6 +56,15 @@ class Use(Node):
         self.parents.append(grp)
         op.parents.append(grp)
         return grp
+
+    def compatible(self, other, opts={}):
+        if self.package != op.package:
+            return False
+        my_opts = copy.deepcopy(self.options)
+        my_opts.update(opts)
+        other_opts = copy.deepcopy(self.options)
+        other_opts.update(opts)
+        return self.package.compatible(my_opts, other_opts)
 
     @property
     def found(self):
