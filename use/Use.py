@@ -2,6 +2,7 @@ import copy
 import logging
 from .Node import Node
 from .Argument import ArgumentCheck, Argument
+from .Options import OptionDict, OptionJoin
 from .utils import load_class, getarg, conditions_equal
 
 ##
@@ -57,14 +58,24 @@ class Use(Node):
         op.parents.append(grp)
         return grp
 
-    def compatible(self, other, opts={}):
-        if self.package != op.package:
+    def is_compatible(self, other, opts={}):
+        if self.package != other.package:
             return False
-        my_opts = copy.deepcopy(self.options)
+        if isinstance(self.options, (OptionDict, OptionJoin)):
+            my_opts = self.options.get()
+        elif self.options is None:
+            my_opts = {}
+        else:
+            my_opts = copy.deepcopy(self.options)
         my_opts.update(opts)
-        other_opts = copy.deepcopy(self.options)
+        if isinstance(other.options, (OptionDict, OptionJoin)):
+            other_opts = other.options.get()
+        elif other.options is None:
+            other_opts = {}
+        else:
+            other_opts = copy.deepcopy(other.options)
         other_opts.update(opts)
-        return self.package.compatible(my_opts, other_opts)
+        return self.package.is_compatible(my_opts, other_opts)
 
     @property
     def found(self):

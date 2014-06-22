@@ -586,7 +586,7 @@ class Package(object):
     ## the same package may or may not need to be reconfigured, this
     ## method tests if two sets of options need to be reconfigured.
     ##
-    def compatible(self, opts_a, opts_b):
+    def is_compatible(self, opts_a, opts_b):
         return True
 
     @property

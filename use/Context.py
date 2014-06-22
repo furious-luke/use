@@ -227,31 +227,9 @@ class Context(object):
         return False
 
     ##
-    ## Check if anything has changed in the build structure. In order
-    ## to use the existing set of packages we must be able to confirm
-    ## that the new set of Rules is compatible with the old set. This
-    ## will check Uses and Packages too.
     ##
-    def has_graph_changed(self):
-
-        # If there are different numbers of rules, just take it
-        # that the graphs are different enough to reconfigure.
-        if len(self.rules) != len(self._ex_rules):
-            return True
-
-        # Use recursion to find a compatible isomorphism from the
-        # current set of rules to the old one.
-        def _find_compat(rules, ex_rules):
-            if len(rules) == 0:
-                return {}
-            r = rules[0]
-            for ii in range(len(l)):
-                if r.is_compatible(ex_rules[ii]):
-                    m = _find_compat(rules[1:], ex_rules[:ii] + ex_rules[ii + 1:])
-                    if m is not None:
-                        m[r] = ex_rules[ii]
-                        return m
-            return None
+    ##
+    def match_configuration(self):
 
         # First, find the list of tree roots for old and new.
         roots = [r for r in self.rules if not r.children]
@@ -259,7 +237,7 @@ class Context(object):
 
         # Use the above function to determine if the rules graph
         # has changed form.
-        mapping = _find_compat(self.rules, self._ex_rules)
+        mapping = match_rules(roots, ex_roots)
         return mapping is not None
 
     ##

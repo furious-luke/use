@@ -52,5 +52,4 @@ class DB(object):
     def _init_db(self):
         self._conn.execute('''CREATE TABLE IF NOT EXISTS nodes
                               (key TEXT PRIMARY KEY, mtime TEXT, crc TEXT)''')
-        self._conn.execute('''CREATE TABLE IF NOT EXISTS uses
-                              (
+        # self._conn.execute('''CREATE TABLE IF NOT EXISTS uses''')

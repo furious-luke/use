@@ -31,11 +31,11 @@ def test_file():
 
 def test_needs_configure_manual():
     ctx = Context()
-    ctx.arguments = []
+    ctx.arguments = type('', (object,), {'targets': []})
     assert_equal(ctx.needs_configure(), False)
-    ctx.arguments = ['configure']
+    ctx.arguments = type('', (object,), {'targets': ['configure']})
     assert_equal(ctx.needs_configure(), True)
-    ctx.arguments = ['reconfigure']
+    ctx.arguments = type('', (object,), {'targets': ['reconfigure']})
     assert_equal(ctx.needs_configure(), True)
 
 def test_needs_configure_db_missing():
