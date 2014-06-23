@@ -10,7 +10,7 @@ class DB(object):
         self._buf = []
 
     def exists(self):
-        return os.path.exists(fn)
+        return os.path.exists(self.filename)
 
     def load_node(self, node):
         cur = self._conn.cursor()
@@ -41,6 +41,14 @@ class DB(object):
         for use in uses:
             pass
 
+    def load_rules(self):
+        pass
+
+    def save_rules(self, rules):
+        for rule in rules:
+            data = {
+            }
+
     def flush(self):
         if self._buf:
             cur = self._conn.cursor()
@@ -52,4 +60,9 @@ class DB(object):
     def _init_db(self):
         self._conn.execute('''CREATE TABLE IF NOT EXISTS nodes
                               (key TEXT PRIMARY KEY, mtime TEXT, crc TEXT)''')
-        # self._conn.execute('''CREATE TABLE IF NOT EXISTS uses''')
+        self._conn.execute('''CREATE TABLE IF NOT EXISTS uses
+                              (key INTEGER PRIMARY KEY)''')
+        self._conn.execute('''CREATE TABLE IF NOT EXISTS rules
+                              (key INTEGER PRIMARY KEY, use INTEGER, options TEXT)''')
+        self._conn.execute('''CREATE TABLE IF NOT EXISTS rules_children
+                              (parent INTEGER PRIMARY KEY, child INTEGER)''')

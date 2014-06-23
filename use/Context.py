@@ -27,6 +27,7 @@ class Context(object):
 
         self.packages = []
         self.rules = []
+        self._ex_rules = []
         self.uses = []
         self._node_map = {}
         self.targets = []
@@ -204,25 +205,16 @@ class Context(object):
             return True
 
         # If we have not run before then definitely configure.
-        if not _db.exists():
+        if not self._db.exists():
             logging.debug('Context:  No prior configuration to use.')
             sys.stdout.write('No prior configuration to use.\n')
             return True
 
-        # Check if anything has changed in the build structure.
-        if self.structure_changed():
-            logging.debug('Context:  Build structure has changed.')
-            sys.stdout.write('Build structure has changed.\n')
+        # Check if we can match existing configuration.
+        if not self.match_configuration():
+            logging.debug('Context:  Cannot match existing configuration.')
+            sys.stdout.write('Cannot match existing configuration.')
             return True
-
-        # Check each package for reconfiguration requests.
-        for pkg in self.packages:
-            if pkg.needs_configure(old_ctx._pkg_map[pkg.__class__]):
-                sys.stdout.write(pkg.name + ' has changed.\n')
-                return True
-
-        # Now use the old context.
-        self._use_old_ctx(old_ctx)
 
         return False
 
@@ -238,7 +230,12 @@ class Context(object):
         # Use the above function to determine if the rules graph
         # has changed form.
         mapping = match_rules(roots, ex_roots)
-        return mapping is not None
+
+        if mapping is None:
+            return False
+        for k, v in mapping.iteritems():
+            k.use_existing(v)
+        return True
 
     ##
     ## Scan files for rule sources.

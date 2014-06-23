@@ -62,6 +62,11 @@ class RuleList(object):
     def __repr__(self):
         return str(self._rules)
 
+    def add_child(self, child):
+        for r in self._rules:
+            if isinstance(r, (Rule, RuleList)):
+                r.add_child(child)
+
     def _expand(self):
         rules = []
         for r in self._rules:
@@ -76,6 +81,10 @@ class Rule(object):
         super(Rule, self).__init__()
         self.condition = cond
         self.sources = to_list(sources)
+        self.children = []
+        for s in self.sources:
+            if isinstance(s, (Rule, RuleList)):
+                s.add_child(self)
         self._src_nodes = []
         self.product_nodes = []
         self.productions = []
@@ -98,6 +107,9 @@ class Rule(object):
 
     def __ne__(self, op):
         return not self.__eq__(op)
+
+    def add_child(self, child):
+        self.children.append(child)
 
     @property
     def source_nodes(self):

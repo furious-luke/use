@@ -3,6 +3,7 @@ from nose.tools import *
 from use.Context import Context
 from use.Node import Node
 from use.File import File
+from use.Rule import Rule
 
 class DummyDB(object):
     def __init__(self, ex):
@@ -40,29 +41,17 @@ def test_needs_configure_manual():
 
 def test_needs_configure_db_missing():
     ctx = Context()
+    ctx.arguments = type('', (object,), {'targets': []})
     ctx._db = DummyDB(True)
     assert_equal(ctx.needs_configure(), False)
     ctx._db = DummyDB(False)
     assert_equal(ctx.needs_configure(), True)
 
-def test_has_graph_changed_different_lengths():
+def test_needs_configure_match():
     ctx = Context()
-    ctx.rules = [1, 2]
-    ctx._ex_rules = [1]
-    assert_equal(ctx.has_graph_changed(), True)
-    # TODO: Check success when same length
-
-def test_has_graph_changed_same_rules():
-    ctx = Context()
-    ctx.rules = [Rule('a', 'u'), Rule('b', 'u')]
+    ctx.arguments = type('', (object,), {'targets': []})
+    ctx._db = DummyDB(True)
+    assert_equal(ctx.needs_configure(), False)
+    ctx.rules = [Rule('src', 'use', 'cond', 'opts')]
     ctx._ex_rules = []
-
-def test_has_graph_changed_compatible():
-    ctx = Context()
-    ctx.rules = []
-    ctx._ex_rules = []
-
-def test_has_graph_changed_incompatible():
-    ctx = Context()
-    ctx.rules = []
-    ctx._ex_rules = []
+    assert_equal(ctx.needs_configure(), True)
