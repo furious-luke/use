@@ -8,9 +8,14 @@ class DB(object):
         self._conn.row_factory = sqlite3.Row
         self._init_db()
         self._buf = []
+        self._keys = {}
 
     def exists(self):
         return os.path.exists(self.filename)
+
+    def key(self, obj):
+        assert obj in self._keys
+        return self._keys.get(obj)
 
     def load_node(self, node):
         cur = self._conn.cursor()
@@ -42,12 +47,23 @@ class DB(object):
             pass
 
     def load_rules(self):
-        pass
+        cur = self._conn.cursor()
+        cur.execute('SELECT * FROM rules')
+        rules = []
+        for data in cur:
+            r = Rule()
+            r.load_data(data)
+            rules.append(r)
+        return rules
 
     def save_rules(self, rules):
         for rule in rules:
-            data = {
-            }
+            data = rule.save_data()
+            assert 'use' in data
+            data['options'] = ("'%s'"%data['options']) if ('options' in data and data['options'] not in ({}, None)) else 'NULL'
+            str = '''INSERT OR REPLACE INTO nodes(key, mtime, crc)
+                     VALUES('{use}', {options});'''.format(**data)
+            self._buf.append(str)
 
     def flush(self):
         if self._buf:
@@ -61,7 +77,7 @@ class DB(object):
         self._conn.execute('''CREATE TABLE IF NOT EXISTS nodes
                               (key TEXT PRIMARY KEY, mtime TEXT, crc TEXT)''')
         self._conn.execute('''CREATE TABLE IF NOT EXISTS uses
-                              (key INTEGER PRIMARY KEY)''')
+                              (key INTEGER PRIMARY KEY, class TEXT, options TEXT)''')
         self._conn.execute('''CREATE TABLE IF NOT EXISTS rules
                               (key INTEGER PRIMARY KEY, use INTEGER, options TEXT)''')
         self._conn.execute('''CREATE TABLE IF NOT EXISTS rules_children

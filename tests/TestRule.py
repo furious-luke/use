@@ -1,13 +1,22 @@
+import json
 from nose.tools import *
 from use.Rule import Rule, match_rules
 from use.Use import Use
 from use.Package import Package
+from use.Options import OptionDict
 
 class OtherRule(Rule):
     pass
 
 class OtherPackage(Package):
     pass
+
+class DBMock(object):
+    def __init__(self, m):
+        self._map = m
+    def key(self, k):
+        assert k in self._map
+        return self._map[k]
 
 def test_init():
     r = Rule('src', 'use', 'cond', 'opts')
@@ -106,3 +115,23 @@ def test_match_rules_sources():
     r2 = Rule([], use2)
     r4 = Rule([r2], use1)
     assert_equal(match_rules([r3], [r4]), None)
+
+def test_save_data():
+    db = DBMock({'use': 'use_key'})
+    opts = OptionDict(one='1')
+    r = Rule('src', 'use', 'cond', opts)
+    d = r.save_data(db)
+    assert_equal(d['use'], 'use_key')
+    assert_equal(d['options'], json.dumps(opts.get()))
+
+def test_save_data_no_options():
+    db = DBMock({'use': 'use_key'})
+    r = Rule('src', 'use', 'cond')
+    d = r.save_data(db)
+    assert_equal(d['use'], 'use_key')
+    assert_equal(d['options'], json.dumps({}))
+
+def test_save_data_no_use():
+    db = DBMock({'use1': 'use_key'})
+    r = Rule('src', 'use', 'cond')
+    assert_raises(Exception, r.save_data, (db,))

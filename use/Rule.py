@@ -1,4 +1,4 @@
-import re, os
+import re, os, json
 from collections import Counter
 from .Node import Node
 from .File import File
@@ -212,3 +212,10 @@ class Rule(object):
 
         logging.debug('Rule: Found %s'%srcs)
         return srcs
+
+    def save_data(self, db):
+        opts = self.options.get() if self.options else {}
+        return {
+            'use': db.key(self.use),
+            'options': json.dumps(opts)
+        }

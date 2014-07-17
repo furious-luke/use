@@ -52,3 +52,11 @@ def test_load_node_missing():
     assert_equal(n._ex_mtime, None)
     assert_equal(n._ex_crc, None)
     os.remove(fn)
+
+def test_save_rules():
+    with tempfile.NamedTemporaryFile(delete=False) as file:
+        fn = file.name
+    db = DB(fn)
+    rules = [Rule('a', 'u1'), Rule('b', 'u2')]
+    db.save_rule(n)
+    os.remove(fn)
