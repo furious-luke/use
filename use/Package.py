@@ -1,4 +1,4 @@
-import sys, os, pickle, logging
+import sys, os, pickle, logging, json
 from .Node import Node
 from .File import File
 from .Builder import Builder
@@ -8,7 +8,7 @@ from .Options import OptionParser
 from .Installer import Installer
 from .apply import apply
 from .conv import to_list
-from .utils import strip_missing, make_dirs
+from .utils import strip_missing, make_dirs, split_class, load_class
 
 ##
 ## A package installation. Packages may have multiple
@@ -19,14 +19,21 @@ class Installation(Node):
 
     def __init__(self, version=None, location=None, **kwargs):
         super(Installation, self).__init__()
-        self.version = version
-        self.location = location
-        self._bins = kwargs.get('binaries', [])
-        self._hdrs = kwargs.get('headers', [])
-        self._libs = kwargs.get('libraries', [])
-        self.features = []
-        self._ftr_map = {}
-        self._args = {}
+
+        # If we have a dictionary as version load data.
+        if isinstance(version, dict):
+            self.load_data(version)
+
+        # Otherwise business as usual.
+        else:
+            self.version = version
+            self.location = location
+            self._bins = kwargs.get('binaries', [])
+            self._hdrs = kwargs.get('headers', [])
+            self._libs = kwargs.get('libraries', [])
+            self.features = []
+            self._ftr_map = {}
+            self._args = {}
 
     def __repr__(self):
         text = [
@@ -106,6 +113,26 @@ class Installation(Node):
     def resolve_set(self, root, use_set):
         return self.version.resolve_set(root, use_set, self)
 
+    def save_data(self):
+        return {
+            'version': str(self.version.__class__),
+            'location': json.dumps(self.location.__dict__),
+            'binaries': json.dumps(self._bins),
+            'headers': json.dumps(self._hdrs),
+            'libraries': json.dumps(self._libs),
+            'features': json.dumps(self._ftr_map.keys())
+        }
+
+    def load_data(self, data):
+        mod, cls = split_class(data['version'])
+        self.version = load_class(mod, cls)()
+        l = json.loads(data['location'])
+        self.location = Location(l['base'], l['binary_dirs'], l['header_dirs'], l['library_dirs'])
+        self._bins = json.loads(data['binaries'])
+        self._hdrs = json.loads(data['headers'])
+        self._libs = json.loads(data['libraries'])
+        self._ftr_map = dict([(k, None) for k in json.loads(data['features'])])
+
 ##
 ## Represents a package version. Packages may require
 ## different methods for configuration depending on
@@ -113,11 +140,12 @@ class Installation(Node):
 ##
 class Version(object):
 
-    def __init__(self, package):
+    def __init__(self, package=None):
         self.package = package
         self.installations = []
         self.url = getattr(self, 'url', None)
-        self.dependencies = [package.ctx.new_use(d) for d in (self.dependencies if hasattr(self, 'dependencies') else [])]
+        if self.package is not None:
+            self.dependencies = [package.ctx.new_use(d) for d in (self.dependencies if hasattr(self, 'dependencies') else [])]
 
         # Set my version name.
         if not hasattr(self, 'version'):
@@ -139,7 +167,10 @@ class Version(object):
 
         # Check if patterns have been set.
         if not hasattr(self, 'patterns'):
-            self.patterns = '*' + self.package.name + '*'
+            if self.package is not None:
+                self.patterns = '*' + self.package.name + '*'
+            else:
+                self.patterns = None
 
         # Features describe optional components of a package. We store
         # all possible features of the version here.
@@ -150,7 +181,8 @@ class Version(object):
 
         # Set the possible features on the package class.
         for ftr in self.features:
-            self.package.add_feature(ftr)
+            if self.package is not None:
+                self.package.add_feature(ftr)
 
         self.header_sub_dirs = getattr(self, 'header_sub_dirs', getattr(self.package, 'header_sub_dirs', []))
 

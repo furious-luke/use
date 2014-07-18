@@ -1,4 +1,4 @@
-import copy
+import copy, json
 import logging
 from .Node import Node
 from .Argument import ArgumentCheck, Argument
@@ -12,13 +12,21 @@ class Use(Node):
 
     def __init__(self, package, options=None, cond=None):
         super(Use, self).__init__()
-        self.package = package
-        self.condition = cond
-        self.options = options
-        self.selected = None
-        self.parents = []
-        self._found = False
-        self.package.uses.append(self)
+
+        # If package is a dictionary then load the data,
+        # contained therein.
+        if isinstance(package, dict):
+            self.load_data(package)
+
+        # Otherwise initialise as usual.
+        else:
+            self.package = package
+            self.condition = cond
+            self.options = options
+            self.selected = None
+            self.parents = []
+            self._found = False
+            self.package.uses.append(self)
 
     def __eq__(self, op):
         if self.package != op.package:
@@ -143,6 +151,23 @@ class Use(Node):
             return self.selected.use.selected.feature(self.selected.feature_name).resolve_set(root, use_set)
         else:
             return self.selected.resolve_set(root, use_set)
+
+    def save_data(self):
+        opts = self.options.get() if self.options else {}
+        inst = self.selected.save_data() if self.selected else {}
+        return {
+            'package': str(self.package.__class__),
+            'installation': json.dumps(inst),
+            'options': json.dumps(opts)
+        }
+
+    def load_data(self, data):
+        self.package = load_class(data['package'])
+        self.selected = Installation(data['installation'])
+        self.options = data.get('options', None)
+
+    def load_data(self):
+        pass
 
 ##
 ##

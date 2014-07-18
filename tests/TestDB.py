@@ -2,6 +2,14 @@ import os, tempfile, datetime
 from nose.tools import *
 from use.DB import DB
 from use.Node import Node
+from use.Package import Package
+from use.Use import Use
+
+class ContextMock(object):
+    pass
+
+class OtherPackage(Package):
+    pass
 
 def test_init():
     with tempfile.NamedTemporaryFile(delete=False) as file:
@@ -20,6 +28,7 @@ def test_save_node():
     n.mtime = datetime.datetime.now()
     n.crc = '3893aef4'
     db.save_node(n)
+    db.flush()
     os.remove(fn)
 
 def test_load_node():
@@ -53,10 +62,38 @@ def test_load_node_missing():
     assert_equal(n._ex_crc, None)
     os.remove(fn)
 
-def test_save_rules():
+def test_save_uses():
     with tempfile.NamedTemporaryFile(delete=False) as file:
         fn = file.name
     db = DB(fn)
-    rules = [Rule('a', 'u1'), Rule('b', 'u2')]
-    db.save_rule(n)
+    uses = [
+        Use(Package(ContextMock())),
+        Use(OtherPackage(ContextMock()))
+    ]
+    db.save_uses(uses)
+    db.flush()
+    assert_equal(db._cur_key, 2)
+    assert_equal(db._keys, {uses[0]: 0, uses[1]: 1})
     os.remove(fn)
+
+def test_load_uses():
+    with tempfile.NamedTemporaryFile(delete=False) as file:
+        fn = file.name
+    db = DB(fn)
+    uses = [
+        Use(Package(ContextMock())),
+        Use(OtherPackage(ContextMock()))
+    ]
+    db.save_uses(uses)
+    db.flush()
+    new_uses = db.load_uses()
+    # assert_equal(new_uses[0].
+    os.remove(fn)
+
+# def test_save_rules():
+#     with tempfile.NamedTemporaryFile(delete=False) as file:
+#         fn = file.name
+#     db = DB(fn)
+#     rules = [Rule('a', 'u1'), Rule('b', 'u2')]
+#     db.save_rule(n)
+#     os.remove(fn)

@@ -9,6 +9,7 @@ class DB(object):
         self._init_db()
         self._buf = []
         self._keys = {}
+        self._cur_key = 0
 
     def exists(self):
         return os.path.exists(self.filename)
@@ -44,7 +45,17 @@ class DB(object):
 
     def save_uses(self, uses):
         for use in uses:
-            pass
+            data = use.save_data()
+            assert 'package' in data
+            data['key'] = self._cur_key
+            self._cur_key += 1
+            assert use not in self._keys
+            self._keys[use] = data['key']
+            data['options'] = ("'%s'"%data['options']) if ('options' in data and data['options'] not in ({}, None)) else 'NULL'
+            data['package'] = data['package'].replace("'", "''")
+            str = '''INSERT OR REPLACE INTO uses(key, package, options)
+                     VALUES('{key}', '{package}', {options});'''.format(**data)
+            self._buf.append(str)
 
     def load_rules(self):
         cur = self._conn.cursor()
@@ -77,7 +88,7 @@ class DB(object):
         self._conn.execute('''CREATE TABLE IF NOT EXISTS nodes
                               (key TEXT PRIMARY KEY, mtime TEXT, crc TEXT)''')
         self._conn.execute('''CREATE TABLE IF NOT EXISTS uses
-                              (key INTEGER PRIMARY KEY, class TEXT, options TEXT)''')
+                              (key INTEGER PRIMARY KEY, package TEXT, options TEXT)''')
         self._conn.execute('''CREATE TABLE IF NOT EXISTS rules
                               (key INTEGER PRIMARY KEY, use INTEGER, options TEXT)''')
         self._conn.execute('''CREATE TABLE IF NOT EXISTS rules_children
