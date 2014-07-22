@@ -3,7 +3,8 @@ import logging
 from .Node import Node
 from .Argument import ArgumentCheck, Argument
 from .Options import OptionDict, OptionJoin
-from .utils import load_class, getarg, conditions_equal
+from .Package import Package, Installation
+from .utils import split_class, load_class, getarg, conditions_equal
 
 ##
 ## Represents a package installation with options.
@@ -13,9 +14,9 @@ class Use(Node):
     def __init__(self, package, options=None, cond=None):
         super(Use, self).__init__()
 
-        # If package is a dictionary then load the data,
-        # contained therein.
-        if isinstance(package, dict):
+        # If package is not a package and is not None then load
+        # a dictionary.
+        if not isinstance(package, Package) and package is not None:
             self.load_data(package)
 
         # Otherwise initialise as usual.
@@ -162,12 +163,10 @@ class Use(Node):
         }
 
     def load_data(self, data):
-        self.package = load_class(data['package'])
-        self.selected = Installation(data['installation'])
-        self.options = data.get('options', None)
-
-    def load_data(self):
-        pass
+        mod, cls = split_class(data['package'])
+        self.package = load_class(mod, cls)()
+        self.selected = Installation(data['installation']) if 'installation' in data else None
+        self.options = data['options'] if 'options' in data else None
 
 ##
 ##

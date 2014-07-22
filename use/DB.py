@@ -1,4 +1,5 @@
 import os, sqlite3
+from Use import Use
 
 class DB(object):
 
@@ -58,23 +59,48 @@ class DB(object):
             self._buf.append(str)
 
     def load_rules(self):
+
+        # First load all rules.
+        rule_map = {}
         cur = self._conn.cursor()
         cur.execute('SELECT * FROM rules')
         rules = []
         for data in cur:
-            r = Rule()
-            r.load_data(data)
+            r = Rule(data)
+            rule_map[data['key']] = r
             rules.append(r)
+
+        # Next connect children.
+        cur.execute('SELECT * FROM rules_children')
+        for data in cur:
+            r = rule_map[data['parent']]
+            r.add_child(data['child'])
+
         return rules
 
     def save_rules(self, rules):
+
+        # First pass for rules and data.
         for rule in rules:
-            data = rule.save_data()
+            data = rule.save_data(self)
             assert 'use' in data
+            data['key'] = self._cur_key
+            self._cur_key += 1
+            assert rule not in self._keys
+            self._keys[rule] = data['key']
             data['options'] = ("'%s'"%data['options']) if ('options' in data and data['options'] not in ({}, None)) else 'NULL'
-            str = '''INSERT OR REPLACE INTO nodes(key, mtime, crc)
-                     VALUES('{use}', {options});'''.format(**data)
+            str = '''INSERT OR REPLACE INTO rules(key, use, options)
+                     VALUES('{key}', '{use}', {options});'''.format(**data)
             self._buf.append(str)
+
+        # Second pass for children.
+        for rule in rules:
+            for child in rule.children:
+                if isinstance(child, Rule):
+                    data = {'parent': self.key(rule), 'child': self.key(child)}
+                    str = '''INSERT INTO rules_children(parent, child)
+                             VALUES('{parent}', '{child}');'''.format(**data)
+                    self._buf.append(str)
 
     def flush(self):
         if self._buf:

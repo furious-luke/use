@@ -579,7 +579,7 @@ class Version(object):
 ##
 class Package(object):
 
-    def __init__(self, ctx, explicit=False):
+    def __init__(self, ctx=None, explicit=False):
         self.default_builder = getattr(self, 'default_builder', Builder)
         self.default_target_node = getattr(self, 'default_target_node', File)
         self.ctx = ctx
@@ -591,26 +591,28 @@ class Package(object):
         self.versions = [v(self) for v in self.versions] if hasattr(self, 'versions') else []
         self._ver_map = dict([(v.name, v) for v in self.versions])
         self._opts = OptionParser()
-        self.dependencies = [self.ctx.load_package(d, True) for d in (self.dependencies if hasattr(self, 'dependencies') else [])]
+        if self.ctx is not None:
+            self.dependencies = [self.ctx.load_package(d, True) for d in (self.dependencies if hasattr(self, 'dependencies') else [])]
         self.uses = []
 
         # Setup sub-packages.
-        if hasattr(self, 'sub_packages'):
-            pkgs = []
-            self._sub_pkg_map = {}
-            for sub in self.sub_packages:
-                cur = ctx.load_package(sub, False)
-                pkgs.append(cur)
-                self._sub_pkg_map[sub] = cur
-                cur.super_packages.append(self)
-            self.sub_packages = pkgs
+        if self.ctx is not None:
+            if hasattr(self, 'sub_packages'):
+                pkgs = []
+                self._sub_pkg_map = {}
+                for sub in self.sub_packages:
+                    cur = ctx.load_package(sub, False)
+                    pkgs.append(cur)
+                    self._sub_pkg_map[sub] = cur
+                    cur.super_packages.append(self)
+                self.sub_packages = pkgs
 
-            # Flag all packages except the first to skip downloading.
-            for pkg in self.sub_packages[1:]:
-                pkg._skip = True
+                # Flag all packages except the first to skip downloading.
+                for pkg in self.sub_packages[1:]:
+                    pkg._skip = True
 
-        else:
-            self.sub_packages = []
+            else:
+                self.sub_packages = []
         self.super_packages = []
 
     ##
