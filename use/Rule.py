@@ -29,7 +29,7 @@ def match_rules(rules, ex_rules):
         mapping = {}
         ex_rule = ex_rules[ii]
         if are_rules_compatible(rule, ex_rule):
-            src_res = match_rules(rule.sources, ex_rule.sources)
+            src_res = match_rules(rule.parents, ex_rule.parents)
             if src_res is None:
                 continue
             ext_res = match_rules(rules[1:], ex_rules[:ii] + ex_rules[ii + 1:])
@@ -77,19 +77,25 @@ class RuleList(object):
 
 class Rule(object):
 
-    def __init__(self, sources, use, cond=None, options={}):
+    def __init__(self, sources, use=None, cond=None, options={}):
         super(Rule, self).__init__()
-        self.condition = cond
-        self.sources = to_list(sources)
-        self.children = []
-        for s in self.sources:
-            if isinstance(s, (Rule, RuleList)):
-                s.add_child(self)
-        self._src_nodes = []
-        self.product_nodes = []
-        self.productions = []
-        self.use = use
-        self.options = options
+
+        if not isinstance(sources, (str, list, RuleList, Rule)) and sources is not None:
+            self.load_data(sources)
+
+        else:
+            self.condition = cond
+            self.sources = to_list(sources)
+            self.children = []
+            self.parents = []
+            for s in self.sources:
+                if isinstance(s, (Rule, RuleList)):
+                    s.add_children(self)
+            self._src_nodes = []
+            self.product_nodes = []
+            self.productions = []
+            self.use = use
+            self.options = options
 
     def __eq__(self, op):
         if type(self) != type(op):
@@ -108,8 +114,11 @@ class Rule(object):
     def __ne__(self, op):
         return not self.__eq__(op)
 
-    def add_child(self, child):
-        self.children.append(child)
+    def add_children(self, children):
+        children = to_list(children)
+        self.children.extend(children)
+        for c in children:
+            c.parents.append(self)
 
     @property
     def source_nodes(self):
@@ -132,7 +141,7 @@ class Rule(object):
         return RuleList(self, op)
 
     def is_compatible(self, other):
-        if self.use != other.use:
+        if not self.use.is_compatible(other.use):
             return False
         return self.use.is_compatible(other.use, self.options)
 
@@ -213,9 +222,19 @@ class Rule(object):
         logging.debug('Rule: Found %s'%srcs)
         return srcs
 
+    def use_existing(self, ex):
+        pass
+
     def save_data(self, db):
         opts = self.options.get() if self.options else {}
         return {
             'use': db.key(self.use),
             'options': json.dumps(opts)
         }
+
+    def load_data(self, data):
+        self.use = data['use']
+        self.options = data['options'] if 'options' in data else None
+        self.children = []
+        self.parents = []
+        self.sources = []

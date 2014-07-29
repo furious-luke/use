@@ -28,6 +28,23 @@ def parse(opts):
                     done = False
 
 ##
+## Merge combination of OptionDicts and dicts.
+##
+def merge(x, y):
+    if isinstance(x, OptionDict):
+        x = x.get()
+    elif x is None:
+        x = {}
+    else:
+        x = dict(x)
+    if isinstance(y, OptionDict):
+        y = y.get()
+    elif y is None:
+        y = {}
+    x.update(y)
+    return x
+
+##
 ##
 ##
 class Option(object):

@@ -20,13 +20,29 @@ class DBMock(object):
 
 def test_init():
     r = Rule('src', 'use', 'cond', 'opts')
-    assert_equals(r.sources, ['src'])
-    assert_equals(r.use, 'use')
-    assert_equals(r.condition, 'cond')
-    assert_equals(r.options, 'opts')
-    assert_equals(r._src_nodes, [])
-    assert_equals(r.product_nodes, [])
-    assert_equals(r.productions, [])
+    assert_equal(r.sources, ['src'])
+    assert_equal(r.parents, [])
+    assert_equal(r.children, [])
+    assert_equal(r.use, 'use')
+    assert_equal(r.condition, 'cond')
+    assert_equal(r.options, 'opts')
+    assert_equal(r._src_nodes, [])
+    assert_equal(r.product_nodes, [])
+    assert_equal(r.productions, [])
+
+def test_init_sources():
+    p = Rule('src', 'use', 'cond', 'opts')
+    r = Rule(['src', p], 'use', 'cond', 'opts')
+    assert_equal(r.sources, ['src', p])
+    assert_equal(r.parents, [p])
+    assert_equal(r.children, [])
+    assert_equal(r.use, 'use')
+    assert_equal(r.condition, 'cond')
+    assert_equal(r.options, 'opts')
+    assert_equal(r._src_nodes, [])
+    assert_equal(r.product_nodes, [])
+    assert_equal(r.productions, [])
+    assert_equal(p.children, [r])
 
 def test_eq_type():
     r1 = Rule('a', 'use')

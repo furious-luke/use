@@ -22,8 +22,8 @@ __all__ = ['Context']
 ##
 class Context(object):
 
-    def __init__(self):
-        self._db = DB()
+    def __init__(self, db=True, db_path=None):
+        self._db = DB(db_path) if db else None
 
         self.packages = []
         self.rules = []
@@ -115,6 +115,25 @@ class Context(object):
         if val is None:
             return self._def_args.get(name, None)
         return val
+
+    def save(self):
+        with tempfile.NamedTemporaryFile(delete=False) as file:
+            fn = file.name
+        db = DB(fn)
+        db.save_uses(self.uses)
+        db.save_rules(self.rules)
+        db.flush()
+        del db
+        if self._db:
+            cur_fn = self._db.filename
+            self._db.delete()
+        else:
+            cur_fn = DB.DEFAULT_FILENAME
+        os.move(fn, cur_fn)
+
+    def load(self):
+        self._ex_uses = self._db.load_uses() if self._db else []
+        self._ex_rules = self._db.load_rules() if self._db else []
 
     ##
     ## Search for packages.
@@ -534,12 +553,6 @@ class Context(object):
         self.arguments.targets = targets
         self._arg_map = _arg_map
         self._node_map = _node_map
-
-    ##
-    ## Load context from file.
-    ##
-    def load(self, base_dir):
-        pass
 
     def _use_old_ctx(self, old_ctx):
 

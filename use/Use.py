@@ -2,7 +2,7 @@ import copy, json
 import logging
 from .Node import Node
 from .Argument import ArgumentCheck, Argument
-from .Options import OptionDict, OptionJoin
+from .Options import OptionDict, OptionJoin, merge
 from .Package import Package, Installation
 from .utils import split_class, load_class, getarg, conditions_equal
 
@@ -70,20 +70,8 @@ class Use(Node):
     def is_compatible(self, other, opts={}):
         if self.package != other.package:
             return False
-        if isinstance(self.options, (OptionDict, OptionJoin)):
-            my_opts = self.options.get()
-        elif self.options is None:
-            my_opts = {}
-        else:
-            my_opts = copy.deepcopy(self.options)
-        my_opts.update(opts)
-        if isinstance(other.options, (OptionDict, OptionJoin)):
-            other_opts = other.options.get()
-        elif other.options is None:
-            other_opts = {}
-        else:
-            other_opts = copy.deepcopy(other.options)
-        other_opts.update(opts)
+        my_opts = merge(self.options, opts)
+        other_opts = merge(other.options, opts)
         return self.package.is_compatible(my_opts, other_opts)
 
     @property
@@ -165,8 +153,9 @@ class Use(Node):
     def load_data(self, data):
         mod, cls = split_class(data['package'])
         self.package = load_class(mod, cls)()
-        self.selected = Installation(data['installation']) if 'installation' in data else None
-        self.options = data['options'] if 'options' in data else None
+        self.selected = Installation(data['installation']) if 'installation' in data and data['installation'] is not None else None
+        self.options = data['options'] if 'options' in data and data['options'] != {} else None
+        self.condition = None
 
 ##
 ##

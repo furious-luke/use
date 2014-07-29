@@ -107,13 +107,36 @@ def test_save_rules():
         Rule('a', 'u1'),
         Rule('b', 'u2')
     ]
-    rules[1].children = [Rule[0]]
+    rules[1].children = [rules[0]]
     db._keys['u1'] = 10
     db._keys['u2'] = 20
     db.save_rules(rules)
     db.flush()
     assert_equal(db._cur_key, 2)
     assert_equal(db._keys, {'u1': 10, 'u2': 20, rules[0]: 0, rules[1]: 1})
+    os.remove(fn)
+
+##
+## Had accidentally set the 'parent' field on the DB to
+## be a primary key, causing failures with multiple children.
+##
+def test_save_rules_multiple_children():
+    with tempfile.NamedTemporaryFile(delete=False) as file:
+        fn = file.name
+    db = DB(fn)
+    rules = [
+        Rule('a', 'u1'),
+        Rule('b', 'u2'),
+        Rule('c', 'u3'),
+    ]
+    rules[1].children = [rules[0], rules[2]]
+    db._keys['u1'] = 10
+    db._keys['u2'] = 20
+    db._keys['u3'] = 30
+    db.save_rules(rules)
+    db.flush()
+    assert_equal(db._cur_key, 3)
+    assert_equal(db._keys, {'u1': 10, 'u2': 20, 'u3': 30, rules[0]: 0, rules[1]: 1, rules[2]: 2})
     os.remove(fn)
 
 def test_load_rules():
@@ -124,10 +147,17 @@ def test_load_rules():
         Rule('a', 'u1'),
         Rule('b', 'u2')
     ]
-    rules[1].children = [Rule[0]]
+    rules[1].children = [rules[0]]
     db._keys['u1'] = 10
     db._keys['u2'] = 20
+    db._objs[10] = 'u1'
+    db._objs[20] = 'u2'
     db.save_rules(rules)
     db.flush()
     rules = db.load_rules()
+    assert_equal(len(rules), 2)
+    assert_equal(rules[0].use, 'u1')
+    assert_equal(rules[1].use, 'u2')
+    assert_equal(rules[0].children, [])
+    assert_equal(rules[1].children, [rules[0]])
     os.remove(fn)

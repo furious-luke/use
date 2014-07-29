@@ -1,15 +1,19 @@
-import os, sqlite3
-from Use import Use
+import os, sqlite3, json
+from .Use import Use
+from .Rule import Rule
 
 class DB(object):
 
-    def __init__(self, fn='.use.db'):
+    DEFAULT_FILENAME='.use.db'
+
+    def __init__(self, fn=DEFAULT_FILENAME):
         self.filename = fn
         self._conn = sqlite3.connect(fn)
         self._conn.row_factory = sqlite3.Row
         self._init_db()
         self._buf = []
         self._keys = {}
+        self._objs = {}
         self._cur_key = 0
 
     def exists(self):
@@ -18,6 +22,10 @@ class DB(object):
     def key(self, obj):
         assert obj in self._keys
         return self._keys.get(obj)
+
+    def obj(self, key):
+        assert key in self._objs
+        return self._objs.get(key)
 
     def load_node(self, node):
         cur = self._conn.cursor()
@@ -40,7 +48,15 @@ class DB(object):
         cur = self._conn.cursor()
         cur.execute('SELECT * FROM uses')
         for data in cur:
-            uses.append(Use(data))
+            key = data['key']
+            data = {
+                'package': data['package'],
+                'installation': data['installation'] if 'installation' in data.keys() else None,
+                'options': json.loads(data['options']) if 'options' in data.keys() else None
+            }
+            u = Use(data)
+            uses.append(u)
+            self._objs[key] = u
         cur.close()
         return uses
 
@@ -52,7 +68,7 @@ class DB(object):
             self._cur_key += 1
             assert use not in self._keys
             self._keys[use] = data['key']
-            data['options'] = ("'%s'"%data['options']) if ('options' in data and data['options'] not in ({}, None)) else 'NULL'
+            data['options'] = ("'%s'"%data['options']) if 'options' in data and data['options'] not in ({}, None) else 'NULL'
             data['package'] = data['package'].replace("'", "''")
             str = '''INSERT OR REPLACE INTO uses(key, package, options)
                      VALUES('{key}', '{package}', {options});'''.format(**data)
@@ -61,20 +77,24 @@ class DB(object):
     def load_rules(self):
 
         # First load all rules.
-        rule_map = {}
         cur = self._conn.cursor()
         cur.execute('SELECT * FROM rules')
         rules = []
         for data in cur:
+            key = data['key']
+            data = {
+                'use': self.obj(data['use']),
+                'options': json.loads(data['options']) if 'options' in data.keys() else None,
+            }
             r = Rule(data)
-            rule_map[data['key']] = r
             rules.append(r)
+            self._objs[key] = r
 
         # Next connect children.
         cur.execute('SELECT * FROM rules_children')
         for data in cur:
-            r = rule_map[data['parent']]
-            r.add_child(data['child'])
+            r = self.obj(data['parent'])
+            r.add_children(self.obj(data['child']))
 
         return rules
 
@@ -118,4 +138,4 @@ class DB(object):
         self._conn.execute('''CREATE TABLE IF NOT EXISTS rules
                               (key INTEGER PRIMARY KEY, use INTEGER, options TEXT)''')
         self._conn.execute('''CREATE TABLE IF NOT EXISTS rules_children
-                              (parent INTEGER PRIMARY KEY, child INTEGER)''')
+                              (parent INTEGER, child INTEGER)''')
