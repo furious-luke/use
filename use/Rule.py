@@ -179,6 +179,8 @@ class Rule(object):
                 if match:
                     try:
                         with open(path, 'r') as file:
+                            if path[:2] == '.' + os.path.sep:
+                                path = path[2:]
                             srcs.append(path)
                     except:
                         pass
