@@ -4,7 +4,7 @@
 ## The primary entry point.
 ##
 
-import os, sys, signal, logging
+import os, sys, signal, logging, argparse
 
 # If we are unable to import directly, try
 # to modify the path to do so.
@@ -24,18 +24,17 @@ except:
 logging.basicConfig(level=logging.DEBUG, filename='install.log')
 
 # Parse input.
-if len(sys.argv) == 0:
-    print 'Nothing to install.'
-    sys.exit(0)
-pkg = sys.argv[1].split('.')[0]
-ver = sys.argv[1].split('.')[-1]
-if ver == pkg:
-    ver = None
+parser = argparse.ArgumentParser(description='Install software.')
+parser.add_argument('package', help='package name')
+parser.add_argument('version', nargs='?', default=None, help='package version')
+parser.add_argument('--prefix', default='/usr/local', help='installation prefix')
+parser.add_argument('--work', default=None, help='work directory')
+args = parser.parse_args()
 
 # Try to load the package.
 ctx = Context()
 try:
-    pkg_class = load_class(pkg)
+    pkg_class = load_class(args.package)
     pkg = pkg_class(ctx)
 except Exception as e:
     print 'Failed to load package class.'
@@ -43,12 +42,10 @@ except Exception as e:
     sys.exit(1)
 
 # Try to locate the version, if there is one.
-if ver:
-    try:
-        ver = pkg.find_version( ver )
-    except Exception as e:
+if args.version:
+    ver = pkg.find_version(args.version)
+    if ver is None:
         print 'Failed to locate version.'
-        logging.debug(str(e))
         sys.exit(1)
 else:
     ver = pkg.versions[0]
@@ -65,4 +62,7 @@ signal.signal(signal.SIGINT, terminate)
 
 # Try to perform the install.
 print 'Going to install: %s (%s)'%(pkg.name, ver.name)
-ver.install('/tmp/iraf', '/tmp/iraf-work')
+print 'Location: %s'%args.prefix
+if args.work is not None:
+    print 'Workspace: %s'%args.work
+ver.install(args.prefix, args.work)

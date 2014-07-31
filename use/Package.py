@@ -197,7 +197,8 @@ class Version(object):
 
     def install(self, inst_dir, work_dir=None):
         logging.debug('Version: Installing %s.'%self.name)
-        inst = self.installer(prog=True)
+        installer = getattr(self, 'installer', Installer)
+        inst = installer(self.url, prog=True)
         inst.set_dirs(work_dir, inst_dir)
         inst()
         logging.debug('Version: Installing %s done.'%self.name)

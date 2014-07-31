@@ -4,34 +4,35 @@ from nose.tools import *
 from use.Installer import *
 
 def test_init():
-    inst = Installer()
-    assert_equals(inst.work_dir, None)
-    assert_equals(inst.install_dir, None)
+    inst = Installer('a')
+    assert_equal(inst.url, 'a')
+    assert_equal(inst.work_dir, None)
+    assert_equal(inst.install_dir, None)
 
 def test__check_auto():
-    inst = Installer()
+    inst = Installer('a')
     inst._check()
-    assert_not_equals(inst.work_dir, None)
-    assert_equals(inst._tmp_dir, os.path.join(inst.work_dir, 'tmp'))
-    assert_equals(inst._src_dir, os.path.join(inst.work_dir, 'src'))
-    assert_equals(inst._bld_dir, os.path.join(inst.work_dir, 'bld'))
-    assert_equals(inst._bld_succ_path, os.path.join(inst.work_dir, inst.build_success_fname))
-    assert_equals(inst._ins_succ_path, os.path.join(inst.work_dir, inst.install_success_fname))
+    assert_not_equal(inst.work_dir, None)
+    assert_equal(inst._tmp_dir, os.path.join(inst.work_dir, 'tmp'))
+    assert_equal(inst._src_dir, os.path.join(inst.work_dir, 'src'))
+    assert_equal(inst._bld_dir, os.path.join(inst.work_dir, 'bld'))
+    assert_equal(inst._bld_succ_path, os.path.join(inst.work_dir, inst.build_success_fname))
+    assert_equal(inst._ins_succ_path, os.path.join(inst.work_dir, inst.install_success_fname))
 
 def test__check_changed():
-    inst = Installer()
+    inst = Installer('a')
     dir = tempfile.mkdtemp()
     inst.work_dir = dir
     inst._check()
-    assert_equals(inst.work_dir, dir)
-    assert_equals(inst._tmp_dir, os.path.join(inst.work_dir, 'tmp'))
-    assert_equals(inst._src_dir, os.path.join(inst.work_dir, 'src'))
-    assert_equals(inst._bld_dir, os.path.join(inst.work_dir, 'bld'))
-    assert_equals(inst._bld_succ_path, os.path.join(inst.work_dir, inst.build_success_fname))
-    assert_equals(inst._ins_succ_path, os.path.join(inst.work_dir, inst.install_success_fname))
+    assert_equal(inst.work_dir, dir)
+    assert_equal(inst._tmp_dir, os.path.join(inst.work_dir, 'tmp'))
+    assert_equal(inst._src_dir, os.path.join(inst.work_dir, 'src'))
+    assert_equal(inst._bld_dir, os.path.join(inst.work_dir, 'bld'))
+    assert_equal(inst._bld_succ_path, os.path.join(inst.work_dir, inst.build_success_fname))
+    assert_equal(inst._ins_succ_path, os.path.join(inst.work_dir, inst.install_success_fname))
 
 def test_download_package_auto():
-    inst = Installer()
+    inst = Installer('a')
 
     # Create a test file for downloading.
     with tempfile.NamedTemporaryFile(delete=False) as file:
@@ -39,12 +40,12 @@ def test_download_package_auto():
         file.write('test')
 
     path = inst.download_package('file://' + os.path.abspath(name))
-    assert_not_equals(path, None)
+    assert_not_equal(path, None)
     with open(path) as file:
-        assert_equals(file.readline(), 'test')
+        assert_equal(file.readline(), 'test')
 
 def test_download_package_named():
-    inst = Installer()
+    inst = Installer('a')
 
     # Create a test file for downloading.
     with tempfile.NamedTemporaryFile(delete=False) as file:
@@ -52,12 +53,12 @@ def test_download_package_named():
         file.write('test')
 
     path = inst.download_package('file://' + os.path.abspath(name), 'myfile')
-    assert_equals(path, os.path.join(inst.work_dir, 'myfile'))
+    assert_equal(path, os.path.join(inst.work_dir, 'myfile'))
     with open(path) as file:
-        assert_equals(file.readline(), 'test')
+        assert_equal(file.readline(), 'test')
 
 def test_download_package_exists():
-    inst = Installer()
+    inst = Installer('a')
 
     # Create a test file for downloading.
     with tempfile.NamedTemporaryFile(delete=False) as file:
@@ -75,13 +76,13 @@ def test_download_package_exists():
     sleep(0.1)
 
     path = inst.download_package('file://' + os.path.abspath(name), 'myfile')
-    assert_equals(path, myfile)
+    assert_equal(path, myfile)
     with open(path) as file:
-        assert_equals(file.readline(), 'test')
-    assert_equals(mtime, os.path.getmtime(myfile))
+        assert_equal(file.readline(), 'test')
+    assert_equal(mtime, os.path.getmtime(myfile))
 
 def test_download_package_force():
-    inst = Installer()
+    inst = Installer('a')
 
     # Create a test file for downloading.
     with tempfile.NamedTemporaryFile(delete=False) as file:
@@ -94,18 +95,19 @@ def test_download_package_force():
     with open(myfile, 'w') as file:
         file.write('test')
 
-    # Cache timestamp and wait a few milliseconds.
+    # Cache timestamp and wait a few milliseconds. Actually, need
+    # 0.8 of a second to satisfy Macs.
     mtime = os.path.getmtime(myfile)
-    sleep(0.1)
+    sleep(0.8)
 
     path = inst.download_package('file://' + os.path.abspath(name), 'myfile', True)
-    assert_equals(path, myfile)
+    assert_equal(path, myfile)
     with open(path) as file:
-        assert_equals(file.readline(), 'test')
-    assert_not_equals(mtime, os.path.getmtime(myfile))
+        assert_equal(file.readline(), 'test')
+    assert_not_equal(mtime, os.path.getmtime(myfile))
 
 def test_extract_package_tar():
-    inst = Installer()
+    inst = Installer('a')
 
     # Create a test file.
     with tempfile.NamedTemporaryFile(delete=False) as file:
@@ -119,12 +121,12 @@ def test_extract_package_tar():
         tf.add(name, arcname=os.path.basename(name))
 
     path = inst.extract_package(pkg_path)
-    assert_equals(path, os.path.join(inst._src_dir, 'tf'))
+    assert_equal(path, os.path.join(inst._src_dir, 'tf'))
     entries = os.listdir(path)
     assert_in(os.path.basename(name), entries)
 
 def test_extract_package_zip():
-    inst = Installer()
+    inst = Installer('a')
 
     # Create a test file.
     with tempfile.NamedTemporaryFile(delete=False) as file:
@@ -138,12 +140,12 @@ def test_extract_package_zip():
         zf.write(name, arcname=os.path.basename(name))
 
     path = inst.extract_package(pkg_path)
-    assert_equals(path, os.path.join(inst._src_dir, 'zf.zip'))
+    assert_equal(path, os.path.join(inst._src_dir, 'zf.zip'))
     entries = os.listdir(path)
     assert_in(os.path.basename(name), entries)
 
 def test_extract_package_exists():
-    inst = Installer()
+    inst = Installer('a')
 
     # Create a test file.
     with tempfile.NamedTemporaryFile(delete=False) as file:
@@ -164,5 +166,5 @@ def test_extract_package_exists():
     sleep(0.1)
 
     path = inst.extract_package(pkg_path)
-    assert_equals(path, os.path.join(inst._src_dir, 'tf'))
-    assert_equals(mtime, os.path.getmtime(path))
+    assert_equal(path, os.path.join(inst._src_dir, 'tf'))
+    assert_equal(mtime, os.path.getmtime(path))

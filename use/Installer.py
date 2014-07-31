@@ -1,4 +1,5 @@
 import os, subprocess, shlex, shutil, tempfile, logging, sys
+from Options import OptionParser, Option, OptionDict
 from utils import make_dirs
 
 __all__ = ['Installer']
@@ -12,16 +13,35 @@ class Installer(object):
     build_success_fname = 'build_success.use'
     install_success_fname = 'build_success.use'
 
-    def __init__(self, prog=False):
+    def __init__(self, url, prog=False):
+        self.url = url
         self._prog = prog
         self.set_dirs()
         self.name = self.name if hasattr(self, 'name') else self.__class__.__name__
+
+        # Prepare commands with options.
+        self.commands = {}
+
+        self.commands['configure'] = op
+
+        self.commands['make'] = op
+
+        # Prepare basic GNU actions.
+        self.commands = []
+        op = OptionParser()
+        op.add('prefix', long_opts='--prefix')
+        self.commands.append(Command(op, 'configure'))
+        op = OptionParser()
+        op.add('install', long_opts='install')
+            ('make', OptionDict()),
+            ('make', OptionDict(install=True)),
+            ]
 
     def __call__(self):
         logging.debug('Installer: Installing using %s.'%self.name)
         pkg_path = self.download_package(self.url)
         src_dir = self.extract_package(pkg_path)
-        self.run_commands(self.commands)
+        self.run_actions()
         logging.debug('Installer: Done installing using %s.'%self.name)
 
     def set_dirs(self, work_dir=None, install_dir=None):
@@ -131,43 +151,27 @@ class Installer(object):
         logging.debug('Installer: success')
         return dst_dir
 
-    def run_commands(self, cmds, env={}):
-        logging.debug('Installer: running commands')
+    def run_actions(self):
+        logging.debug('Installer: running actions')
         self._check()
 
         # Update the environment with some things.
-        if self.install_dir is not None:
-            env['prefix'] = self.install_dir
+        for act in self.actions:
+            opts = act[1]
+            if opts and 'prefix' not in opts:
+                opts._opts['prefix'] = self.install_dir
 
         # Make a file to log all commands.
         with open(os.path.join(self._work_dir, 'use_build.log'), 'a') as log:
 
             # Process each command in turn.
-            for cmd in cmds:
+            for act in self.actions:
+                cmd, opts = act
 
-                # It's possible to have a tuple, indicating a function and arguments.
-                if isinstance(cmd, tuple):
-                    func = cmd[0]
-                    args = cmd[1:]
+                logging.debug('Installer: command "%s"'%cmd)
 
-                    # Perform substitutions.
-                    args = [env.subst(a.replace('${PREFIX}', dst_path)) for a in args]
-
-                    # Call the function.
-                    func(*args)
-
-                else:
-                    logging.debug('Installer: command "%s"'%cmd)
-
-                    # If the first character in a command is an "!", then it means we allow
-                    # errors from this command.
-                    allow_errors = False
-                    if cmd[0] == '!':
-                        allow_errors = True
-                        cmd = cmd[1:]
-
-                    # Perform substitutions.
-                    cmd = cmd.format(**env)
+                # Perform substitutions.
+                cmd = cmd.format(**env)
 
                     try:
                         subprocess.check_call(shlex.split(cmd), stdout=log, stderr=subprocess.STDOUT)
