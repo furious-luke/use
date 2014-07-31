@@ -2,8 +2,19 @@ import json
 from nose.tools import *
 from use.Rule import Rule, match_rules
 from use.Use import Use
-from use.Package import Package
+from use.Package import Package, Installation
 from use.Options import OptionDict
+
+class Context(object):
+    pass
+
+class Version(object):
+    pass
+
+class Location(object):
+    def __init__(self):
+        self.one = '1'
+        self.two = '2'
 
 class OtherRule(Rule):
     pass
@@ -131,6 +142,17 @@ def test_match_rules_sources():
     r2 = Rule([], use2)
     r4 = Rule([r2], use1)
     assert_equal(match_rules([r3], [r4]), None)
+
+def test_use_existing():
+    u1 = Use(Package(Context()))
+    u2 = Use(Package(Context()))
+    inst = Installation(Version(), Location())
+    u1.selected = inst
+    u2.use_existing(u1)
+    r1 = Rule([], u1)
+    r2 = Rule([], u2)
+    r2.use_existing(r1)
+    assert_equal(u1.selected, u2.selected)
 
 def test_save_data():
     db = DBMock({'use': 'use_key'})

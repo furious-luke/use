@@ -141,6 +141,9 @@ class Use(Node):
         else:
             return self.selected.resolve_set(root, use_set)
 
+    def use_existing(self, ex):
+        self.selected = ex.selected
+
     def save_data(self):
         opts = self.options.get() if self.options else {}
         inst = self.selected.save_data() if self.selected else {}

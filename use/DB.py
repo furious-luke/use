@@ -7,8 +7,8 @@ class DB(object):
     DEFAULT_FILENAME='.use.db'
 
     def __init__(self, fn=DEFAULT_FILENAME):
-        self.filename = fn
-        self._conn = sqlite3.connect(fn)
+        self.filename = fn if fn is not None else self.DEFAULT_FILENAME
+        self._conn = sqlite3.connect(self.filename)
         self._conn.row_factory = sqlite3.Row
         self._init_db()
         self._buf = []
@@ -122,6 +122,22 @@ class DB(object):
                              VALUES('{parent}', '{child}');'''.format(**data)
                     self._buf.append(str)
 
+    def save_arguments(self, args, vals):
+        data = args.save_data(vals)
+        for k, v in data.iteritems():
+            v = json.dumps(v).replace("'", "''")
+            str = '''INSERT OR REPLACE INTO arguments(key, value)
+                     VALUES('%s', '%s');'''%(k, v)
+            self._buf.append(str)
+
+    def load_arguments(self, args):
+        cur = self._conn.cursor()
+        cur.execute('SELECT * FROM arguments')
+        data = {}
+        for entry in cur:
+            data[entry['key']] = json.loads(entry['value'])
+        args.load_data(data)
+
     def flush(self):
         if self._buf:
             cur = self._conn.cursor()
@@ -139,3 +155,5 @@ class DB(object):
                               (key INTEGER PRIMARY KEY, use INTEGER, options TEXT)''')
         self._conn.execute('''CREATE TABLE IF NOT EXISTS rules_children
                               (parent INTEGER, child INTEGER)''')
+        self._conn.execute('''CREATE TABLE IF NOT EXISTS arguments
+                              (key TEXT PRIMARY KEY, value TEXT)''')

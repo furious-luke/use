@@ -223,7 +223,7 @@ class Rule(object):
         return srcs
 
     def use_existing(self, ex):
-        pass
+        self.use.use_existing(ex.use)
 
     def save_data(self, db):
         opts = self.options.get() if self.options else {}

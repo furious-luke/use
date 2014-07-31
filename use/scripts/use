@@ -50,7 +50,8 @@ globals_dict = {
 
     # Use shortcuts to insert 
     'platform': platform,
-    'arguments': ctx.new_arguments,
+    'argument': ctx.arguments,
+    'args': ctx.arguments.args,
     'options': ctx.new_options,
     'use': ctx.new_use,
     'rule': ctx.new_rule,
@@ -60,28 +61,33 @@ globals_dict = {
     'dummies': dummies,
 }
 
+# Load existing information if it exists. I need to
+# do this before executing the script due to argument
+# particulars.
+ctx.load()
+
 # Try to execute the build script.
 locals_dict = {}
 # exec(open(script).read(), globals(), locals_dict)
 execfile(script, globals_dict, locals_dict)
 
-# Augment the trees.
-ctx.augment()
+# # Augment the trees.
+# ctx.augment()
 
 # Handle arguments.
 ctx.parse_arguments()
 
-# Perform configuration.
-ctx.configure()
+# # Perform configuration.
+# ctx.configure()
 
-# Locate source files.
-ctx.find_sources()
+# # Locate source files.
+# ctx.find_sources()
 
-# Expand into products.
-ctx.expand()
+# # Expand into products.
+# ctx.expand()
 
-# Scan for implicit dependencies.
-ctx.scan()
+# # Scan for implicit dependencies.
+# ctx.scan()
 
 # If there is a 'post_configure' callable in the locals
 # dictionary call it now.
@@ -89,8 +95,8 @@ post_cfg = locals_dict.get('post_configure', None)
 if post_cfg and callable(post_cfg):
     post_cfg(ctx)
 
-# Find targets to build.
-ctx.find_targets()
+# # Find targets to build.
+# ctx.find_targets()
 
 # Before building, prepare a signal handler to catch interrupts.
 def terminate(signal, frame):
@@ -109,5 +115,5 @@ def terminate(signal, frame):
     sys.exit(0)
 signal.signal(signal.SIGINT, terminate)
 
-# Build targets.
-ctx.build()
+# # Build targets.
+# ctx.build()

@@ -65,6 +65,14 @@ def test_eq_options():
     u2 = Use(Package(Context()), options=False)
     assert_equal(u1, u2)
 
+def test_use_existing():
+    u1 = Use(Package(Context()))
+    u2 = Use(Package(Context()))
+    inst = Installation(Version(), Location())
+    u1.selected = inst
+    u2.use_existing(u1)
+    assert_equal(u1.selected, u2.selected)
+
 def test_save_data():
     opts = OptionDict(test='value')
     inst = Installation(Version(), Location())

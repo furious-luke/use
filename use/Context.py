@@ -38,14 +38,11 @@ class Context(object):
         self.old_bldrs = {}
         self._exiting = False
 
-        self.arguments = None
-        self._def_args = {}
-        self._arg_map = {}
-        self.parser = argparse.ArgumentParser('"Use": Software configuration and build.')
-        self.parser.add_argument('targets', nargs='*', help='Specify build targets.')
-        self.parser.add_argument('-s', dest='show_config', action='store_true', help='Show current configuration.')
-        self.new_arguments()('--enable-download-all', dest='download_all', action='boolean', help='Download and install all dependencies.')
-        self.new_arguments()('-j', dest='num_threads', type=int, default=1, help='Number of threads.')
+        self.arguments = Arguments('Software build system.')
+        self.arguments.parser.add_argument('targets', nargs='*', help='specify build targets')
+        self.arguments.parser.add_argument('--show-config', '-s', dest='show_config', action='store_true', help='show current configuration')
+        self.arguments('--enable-download-all', help='download and install all dependencies')
+        self.arguments('-j', dest='num_threads', type=int, default=1, help='number of threads')
 
     def __eq__(self, op):
 
@@ -78,25 +75,25 @@ class Context(object):
     ##
     def parse_arguments(self):
 
-        # Add arguments.
+        # Add arguments from packages.
         for pkg in self.packages:
-            pkg.add_arguments(self.parser)
+            pkg.add_arguments(self.arguments)
 
         # Parse.
-        self.arguments = self.parser.parse_args()
+        self.arguments.parse()
 
         # Check if we have an old structure to use, unless the user
         # requested a reconfiguration.
-        if 'configure' not in self.arguments.targets and os.path.exists('.use.db'):
+        if 'configure' not in self.arguments.dict.targets and os.path.exists('.use.db'):
             with open('.use.db', 'r') as inf:
                 old_ctx = pickle.load(inf)
 
             # Only update arguments if nothing for that argument was
             # given on the command line.
-            for k, v in self.arguments.__dict__.iteritems():
+            for k, v in self.arguments.dict.__dict__.iteritems():
                 if v is not None:
                     old_ctx.arguments.__dict__[k] = v
-            self.arguments = old_ctx.arguments
+            # self.arguments = old_ctx.arguments
 
         # Parse the options now.
         for use in self.uses:
@@ -134,6 +131,7 @@ class Context(object):
     def load(self):
         self._ex_uses = self._db.load_uses() if self._db else []
         self._ex_rules = self._db.load_rules() if self._db else []
+        self._db.load_arguments(self.arguments)
 
     ##
     ## Search for packages.

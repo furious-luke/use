@@ -17,53 +17,53 @@ class DummyDB(object):
 class OtherPackage(Package):
     pass
 
-# def test_node():
-#     ctx = Context(db=False)
-#     n = ctx.node(Node, 'a')
-#     assert_equal(isinstance(n, Node), True)
-#     assert_equal(n.key, 'a')
+def test_node():
+    ctx = Context(db=False)
+    n = ctx.node(Node, 'a')
+    assert_equal(isinstance(n, Node), True)
+    assert_equal(n.key, 'a')
 
-# def test_node_duplicate():
-#     ctx = Context(db=False)
-#     a = ctx.node(Node, 'a')
-#     b = ctx.node(Node, 'b')
-#     c = ctx.node(Node, 'a')
-#     assert_is(a, c)
-#     assert_is_not(a, b)
+def test_node_duplicate():
+    ctx = Context(db=False)
+    a = ctx.node(Node, 'a')
+    b = ctx.node(Node, 'b')
+    c = ctx.node(Node, 'a')
+    assert_is(a, c)
+    assert_is_not(a, b)
 
-# def test_file():
-#     ctx = Context(db=False)
-#     n = ctx.file('some/path')
-#     assert_equal(isinstance(n, File), True)
+def test_file():
+    ctx = Context(db=False)
+    n = ctx.file('some/path')
+    assert_equal(isinstance(n, File), True)
 
-# def test_needs_configure_manual():
-#     with tempfile.NamedTemporaryFile(delete=False) as file:
-#         fn = file.name
-#     ctx = Context(db_path=fn)
-#     ctx.arguments = type('', (object,), {'targets': []})
-#     assert_equal(ctx.needs_configure(), False)
-#     ctx.arguments = type('', (object,), {'targets': ['configure']})
-#     assert_equal(ctx.needs_configure(), True)
-#     ctx.arguments = type('', (object,), {'targets': ['reconfigure']})
-#     assert_equal(ctx.needs_configure(), True)
-#     os.remove(fn)
+def test_needs_configure_manual():
+    with tempfile.NamedTemporaryFile(delete=False) as file:
+        fn = file.name
+    ctx = Context(db_path=fn)
+    ctx.arguments = type('', (object,), {'targets': []})
+    assert_equal(ctx.needs_configure(), False)
+    ctx.arguments = type('', (object,), {'targets': ['configure']})
+    assert_equal(ctx.needs_configure(), True)
+    ctx.arguments = type('', (object,), {'targets': ['reconfigure']})
+    assert_equal(ctx.needs_configure(), True)
+    os.remove(fn)
 
-# def test_needs_configure_db_missing():
-#     ctx = Context(db=False)
-#     ctx.arguments = type('', (object,), {'targets': []})
-#     ctx._db = DummyDB(True)
-#     assert_equal(ctx.needs_configure(), False)
-#     ctx._db = DummyDB(False)
-#     assert_equal(ctx.needs_configure(), True)
+def test_needs_configure_db_missing():
+    ctx = Context(db=False)
+    ctx.arguments = type('', (object,), {'targets': []})
+    ctx._db = DummyDB(True)
+    assert_equal(ctx.needs_configure(), False)
+    ctx._db = DummyDB(False)
+    assert_equal(ctx.needs_configure(), True)
 
-# def test_needs_configure_match():
-#     ctx = Context(db=False)
-#     ctx.arguments = type('', (object,), {'targets': []})
-#     ctx._db = DummyDB(True)
-#     assert_equal(ctx.needs_configure(), False)
-#     ctx.rules = [Rule('src', 'use', 'cond', 'opts')]
-#     ctx._ex_rules = []
-#     assert_equal(ctx.needs_configure(), True)
+def test_needs_configure_match():
+    ctx = Context(db=False)
+    ctx.arguments = type('', (object,), {'targets': []})
+    ctx._db = DummyDB(True)
+    assert_equal(ctx.needs_configure(), False)
+    ctx.rules = [Rule('src', 'use', 'cond', 'opts')]
+    ctx._ex_rules = []
+    assert_equal(ctx.needs_configure(), True)
 
 def test_needs_configure_save_load():
     with tempfile.NamedTemporaryFile(delete=False) as file:
