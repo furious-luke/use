@@ -38,7 +38,7 @@ class Context(object):
         self.old_bldrs = {}
         self._exiting = False
 
-        self.arguments = Arguments('Software build system.')
+        self.arguments = Arguments('use')
         self.arguments.parser.add_argument('targets', nargs='*', help='specify build targets')
         self.arguments.parser.add_argument('--show-config', '-s', dest='show_config', action='store_true', help='show current configuration')
         self.arguments('--enable-download-all', help='download and install all dependencies')

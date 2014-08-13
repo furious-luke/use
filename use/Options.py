@@ -50,7 +50,7 @@ def merge(x, y):
 class Option(object):
 
     def __init__(self, name=None, short_opts=None, long_opts=None, **kwargs):
-        assert short_opts or long_opts
+        # assert short_opts or long_opts or kwargs.get('text', None)
         self.name = name
         self.short_opts = to_list(short_opts)
         self.long_opts = to_list(long_opts)
@@ -128,7 +128,11 @@ class OptionParser(object):
     def __init__(self):
         self._opts = OrderedDict()
 
-    def add(self, opt):
+    def add(self, *args, **kwargs):
+        if len(kwargs) == 0 and len(args) == 1 and isinstance(args[0], Option):
+            opt = args[0]
+        else:
+            opt = Option(*args, **kwargs)
         self._opts[opt.name] = opt
 
     def __call__(self, bin, *args, **kwargs):

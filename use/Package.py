@@ -591,7 +591,7 @@ class Package(object):
         self.features = {} # must come before versions
         self.versions = [v(self) for v in self.versions] if hasattr(self, 'versions') else []
         self._ver_map = dict([(v.name, v) for v in self.versions])
-        self._opts = OptionParser()
+        self.option_parser = OptionParser()
         if self.ctx is not None:
             self.dependencies = [self.ctx.load_package(d, True) for d in (self.dependencies if hasattr(self, 'dependencies') else [])]
         self.uses = []
@@ -829,12 +829,6 @@ class Package(object):
                 return acts
         return None
 
-    ##
-    ## Return the options object for this package.
-    ##
-    def options(self):
-        return self._opts
-
     def merge_options(self, vers, *args):
 
         # Make new dictionary out of first argument.
@@ -894,23 +888,23 @@ class Package(object):
         # headers or libraries to find.
         if has_any:
             name = self.option_name
-            self.ctx.new_arguments()('--' + name + '-dir', dest=name + '-dir', help='Specify base directory for %s.'%self.name)
+            self.ctx.arguments('--' + name + '-dir', dest=name + '-dir', help='base directory for %s'%self.name)
 
         # Check for usage of headers, binaries or libraries.
-        for attr, arg, help in [('binaries', '-bin-dir', 'Specify binary directory for %s.'),
-                                ('headers', '-inc-dir', 'Specify include directory for %s.'),
-                                ('libraries', '-lib-dir', 'Specify library directory for %s.'),
-                                ('url', '-download', 'Download and install %s.')]:
+        for attr, arg, help in [('binaries', '-bin-dir', 'binary directory for %s'),
+                                ('headers', '-inc-dir', 'include directory for %s'),
+                                ('libraries', '-lib-dir', 'library directory for %s'),
+                                ('url', '-download', 'download and install %s')]:
             if avail[attr]:
                 if attr == 'url':
-                    self.ctx.new_arguments()('--' + name + arg, dest=name + arg, action='store_true', help=help%self.name)
+                    self.ctx.arguments('--' + name + arg, dest=name + arg, action='store_true', help=help%self.name)
                 else:
-                    self.ctx.new_arguments()('--' + name + arg, dest=name + arg, help=help%self.name)
+                    self.ctx.arguments('--' + name + arg, dest=name + arg, help=help%self.name)
 
         # If this is a compound package, add options for selecting specific sub-packages.
         if self.sub_packages:
-            self.ctx.new_arguments()('--' + name + '-type', dest=name + '-type', choices=[s.option_name for s in self.sub_packages],
-                                     help='Select package type for compound package.')
+            self.ctx.arguments('--' + name + '-type', dest=name + '-type', choices=[s.option_name for s in self.sub_packages],
+                               help='package type for compound package')
 
     ##
     ##

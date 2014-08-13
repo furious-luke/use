@@ -26,16 +26,16 @@ class Installer(object):
 
         self.commands['make'] = op
 
-        # Prepare basic GNU actions.
-        self.commands = []
-        op = OptionParser()
-        op.add('prefix', long_opts='--prefix')
-        self.commands.append(Command(op, 'configure'))
-        op = OptionParser()
-        op.add('install', long_opts='install')
-            ('make', OptionDict()),
-            ('make', OptionDict(install=True)),
-            ]
+        # # Prepare basic GNU actions.
+        # self.commands = []
+        # op = OptionParser()
+        # op.add('prefix', long_opts='--prefix')
+        # self.commands.append(Command(op, 'configure'))
+        # op = OptionParser()
+        # op.add('install', long_opts='install')
+        #     ('make', OptionDict()),
+        #     ('make', OptionDict(install=True)),
+        #     ]
 
     def __call__(self):
         logging.debug('Installer: Installing using %s.'%self.name)
@@ -173,12 +173,12 @@ class Installer(object):
                 # Perform substitutions.
                 cmd = cmd.format(**env)
 
-                    try:
-                        subprocess.check_call(shlex.split(cmd), stdout=log, stderr=subprocess.STDOUT)
-                    except:
-                        logging.debug('Installer: error')
-                        if not allow_errors:
-                            return False
+                    # try:
+                    #     subprocess.check_call(shlex.split(cmd), stdout=log, stderr=subprocess.STDOUT)
+                    # except:
+                    #     logging.debug('Installer: error')
+                    #     if not allow_errors:
+                    #         return False
 
         return True
     
