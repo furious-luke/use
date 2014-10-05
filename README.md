@@ -1,9 +1,7 @@
-====
 use
 ====
 
-Description
-===========
+## Description
 
 A Python based build system taking some of the great ideas from SCons, the
 well established rule based methods of make, and adding a powerful
@@ -12,8 +10,7 @@ configuration system.
 Please note that this software is under heavy development and probably won't
 work properly right now.
 
-Basics
-======
+## Basics
 
 The premise of Use is that the build system can do many more useful things
 if it is in full possession of the facts. Use is more a declarative style
@@ -24,16 +21,14 @@ be followed. A graph is constructed of the build, which allows the system
 to determine which packages are essential and which are optional, amongst
 other things. This makes Use both a configuration and build system in one.
 
-Installation
-============
+## Installation
 
 The only dependency is Python 2.7. Standard setuptools installation can
 be used:
 
   python setup.py install
 
-usescript.py
-============
+## usescript.py
 
 Instructions are given to Use by creating a "usescript.py" file in the
 base directory of your project. The general layout of a usescript file
@@ -48,3 +43,7 @@ will usually be something like:
 There is an example usescript in the examples folder.
 
 TODO: Heaps more documentation.
+
+## Testing
+
+`nosetests -w tests`

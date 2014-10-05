@@ -29,12 +29,14 @@ class Installation(Node):
         self._args = {}
 
     def __repr__(self):
-        text = [
-            'binaries: ' + str(self.binaries),
-            'headers: ' + str(self.headers),
-            'libraries: ' + str(self.libraries)
-            ]
-        return ', '.join(text)
+        if self.location.base:
+            return '"%s"'%self.location.base
+        else:
+            vals = [('binaries', self.binaries),
+                    ('headers', self.headers),
+                    ('libraries', self.libraries)]
+            text = [t + ': "%s"'%str(v) for t, v in vals if v]
+            return ', '.join(text)
 
     @property
     def binaries(self):
@@ -157,10 +159,11 @@ class Version(object):
         return self._ver == op._ver
 
     def __repr__(self):
-        text = []
-        for inst in self.installations:
-            text.append(str(inst))
-        return self.version + '<' + ', '.join(text) + '>'
+        return '%s (%s)'%(self.package.name, self.version)
+
+    @property
+    def potential_installations(self):
+        return self._potential_installations
 
     def iter_dependencies(self):
         done = set()
@@ -594,6 +597,14 @@ class Package(object):
                     deps.insert(0, nd)
         return deps
 
+    @property
+    def potential_installations(self):
+        return dict([(v, v.potential_installations) for v in self.iter_versions() if v.potential_installations])
+
+    @property
+    def installations(self):
+        return dict([(v, v.installations) for v in self.iter_versions() if v.installations])
+
     ##
     ## Packages use their class type for comparison. This is
     ## to make sure only one exists in the graph at any time.
@@ -758,13 +769,13 @@ class Package(object):
     def search(self):
         logging.debug('Performing package search for %s'%self.name)
         done = True
-        for ver in self.versions:
+        for ver in self.iter_versions():
             if not ver.search():
                 done = False
         return done
 
     def check(self):
-        for ver in self.versions:
+        for ver in self.iter_versions():
             ver.check()
 
     def actions(self, inst, *args, **kwargs):

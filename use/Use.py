@@ -80,6 +80,28 @@ class Use(Node):
     def have(self):
         return Argument('enabled', self.package.ctx, self)
 
+    @property
+    def potential_installations(self):
+        return self.package.potential_installations
+
+    @property
+    def installations(self):
+        return self.package.installations
+
+    ##
+    ## Search for potential installations.
+    ##
+    def search(self):
+        self.package.search()
+        return self.potential_installations
+
+    ##
+    ## Check installations for validity.
+    ##
+    def check(self):
+        self.package.check()
+        return self.installations
+
     def _has_feature(self, name):
         if self.enabled:
             for ftr in self.selected.features:

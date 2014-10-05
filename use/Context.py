@@ -11,6 +11,7 @@ from .Argument import Arguments
 from .Options import OptionDict
 from .File import File
 from .conv import to_list
+from .Package import Package
 import logging
 
 __all__ = ['Context']
@@ -68,6 +69,26 @@ class Context(object):
 
     def __ne__(self, op):
         return not self.__eq__(op)
+
+    def list_packages(self):
+        pkgs = []
+        for p in sys.path:
+            p = os.path.join(p, 'use', 'packages')
+            try:
+                entries = os.listdir(p)
+            except:
+                continue
+            for e in entries:
+                n = e[:-3]
+                if n in pkgs:
+                    continue
+                try:
+                    cls = load_class(n)
+                    if issubclass(cls, Package):
+                        pkgs.append(n)
+                except:
+                    continue
+        return pkgs
 
     ##
     ##

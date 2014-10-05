@@ -95,7 +95,7 @@ class Rule(object):
         return self.source_nodes + self.product_nodes
 
     def __repr__(self):
-        return str(self.source) + ' -> ' + str(self.use)
+        return '"%s"'%str(self.source) + ' -> ' + str(self.use)
 
     def __add__(self, op):
         return RuleList(self, op)
