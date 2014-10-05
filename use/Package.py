@@ -1,4 +1,4 @@
-import sys, os, pickle, logging
+import sys, os, pickle, logging, json
 from .Node import Node
 from .File import File
 from .Builder import Builder
@@ -8,7 +8,7 @@ from .Options import OptionParser
 from .Installer import Installer
 from .apply import apply
 from .conv import to_list
-from .utils import strip_missing, make_dirs
+from .utils import strip_missing, make_dirs, split_class, load_class
 
 ##
 ## A package installation. Packages may have multiple
@@ -19,14 +19,21 @@ class Installation(Node):
 
     def __init__(self, version=None, location=None, **kwargs):
         super(Installation, self).__init__()
-        self.version = version
-        self.location = location
-        self._bins = kwargs.get('binaries', [])
-        self._hdrs = kwargs.get('headers', [])
-        self._libs = kwargs.get('libraries', [])
-        self.features = []
-        self._ftr_map = {}
-        self._args = {}
+
+        # If we have a dictionary as version load data.
+        if isinstance(version, dict):
+            self.load_data(version)
+
+        # Otherwise business as usual.
+        else:
+            self.version = version
+            self.location = location
+            self._bins = kwargs.get('binaries', [])
+            self._hdrs = kwargs.get('headers', [])
+            self._libs = kwargs.get('libraries', [])
+            self.features = []
+            self._ftr_map = {}
+            self._args = {}
 
     def __repr__(self):
         if self.location.base:
@@ -108,6 +115,26 @@ class Installation(Node):
     def resolve_set(self, root, use_set):
         return self.version.resolve_set(root, use_set, self)
 
+    def save_data(self):
+        return {
+            'version': str(self.version.__class__),
+            'location': json.dumps(self.location.__dict__),
+            'binaries': json.dumps(self._bins),
+            'headers': json.dumps(self._hdrs),
+            'libraries': json.dumps(self._libs),
+            'features': json.dumps(self._ftr_map.keys())
+        }
+
+    def load_data(self, data):
+        mod, cls = split_class(data['version'])
+        self.version = load_class(mod, cls)()
+        l = json.loads(data['location'])
+        self.location = Location(l['base'], l['binary_dirs'], l['header_dirs'], l['library_dirs'])
+        self._bins = json.loads(data['binaries'])
+        self._hdrs = json.loads(data['headers'])
+        self._libs = json.loads(data['libraries'])
+        self._ftr_map = dict([(k, None) for k in json.loads(data['features'])])
+
 ##
 ## Represents a package version. Packages may require
 ## different methods for configuration depending on
@@ -115,16 +142,18 @@ class Installation(Node):
 ##
 class Version(object):
 
-    def __init__(self, package):
+    def __init__(self, package=None):
         self.package = package
         self.installations = []
         self.url = getattr(self, 'url', None)
-        self.dependencies = [package.ctx.new_use(d) for d in (self.dependencies if hasattr(self, 'dependencies') else [])]
+        if self.package is not None:
+            self.dependencies = [package.ctx.new_use(d) for d in (self.dependencies if hasattr(self, 'dependencies') else [])]
 
         # Set my version name.
         if not hasattr(self, 'version'):
             ver = str(self.__class__)
             self.version = ver[ver.rfind('.') + 1:ver.rfind('\'')].lower()
+        self.name = self.version
 
         # Location handling.
         self._potential_installations = []
@@ -140,7 +169,10 @@ class Version(object):
 
         # Check if patterns have been set.
         if not hasattr(self, 'patterns'):
-            self.patterns = '*' + self.package.name + '*'
+            if self.package is not None:
+                self.patterns = '*' + self.package.name + '*'
+            else:
+                self.patterns = None
 
         # Features describe optional components of a package. We store
         # all possible features of the version here.
@@ -151,7 +183,8 @@ class Version(object):
 
         # Set the possible features on the package class.
         for ftr in self.features:
-            self.package.add_feature(ftr)
+            if self.package is not None:
+                self.package.add_feature(ftr)
 
         self.header_sub_dirs = getattr(self, 'header_sub_dirs', getattr(self.package, 'header_sub_dirs', []))
 
@@ -164,6 +197,14 @@ class Version(object):
     @property
     def potential_installations(self):
         return self._potential_installations
+
+    def install(self, inst_dir, work_dir=None):
+        logging.debug('Version: Installing %s.'%self.name)
+        installer = getattr(self, 'installer', Installer)
+        inst = installer(self.url, prog=True)
+        inst.set_dirs(work_dir, inst_dir)
+        inst()
+        logging.debug('Version: Installing %s done.'%self.name)
 
     def iter_dependencies(self):
         done = set()
@@ -542,7 +583,7 @@ class Version(object):
 ##
 class Package(object):
 
-    def __init__(self, ctx, explicit=False):
+    def __init__(self, ctx=None, explicit=False):
         self.default_builder = getattr(self, 'default_builder', Builder)
         self.default_target_node = getattr(self, 'default_target_node', File)
         self.ctx = ctx
@@ -552,28 +593,39 @@ class Package(object):
         self.environ_name = self.environ_name if hasattr(self, 'environ_name') else self.option_name.upper()
         self.features = {} # must come before versions
         self.versions = [v(self) for v in self.versions] if hasattr(self, 'versions') else []
-        self._opts = OptionParser()
-        self.dependencies = [self.ctx.load_package(d, True) for d in (self.dependencies if hasattr(self, 'dependencies') else [])]
+        self._ver_map = dict([(v.name, v) for v in self.versions])
+        self.option_parser = OptionParser()
+        if self.ctx is not None:
+            self.dependencies = [self.ctx.load_package(d, True) for d in (self.dependencies if hasattr(self, 'dependencies') else [])]
         self.uses = []
 
         # Setup sub-packages.
-        if hasattr(self, 'sub_packages'):
-            pkgs = []
-            self._sub_pkg_map = {}
-            for sub in self.sub_packages:
-                cur = ctx.load_package(sub, False)
-                pkgs.append(cur)
-                self._sub_pkg_map[sub] = cur
-                cur.super_packages.append(self)
-            self.sub_packages = pkgs
+        if self.ctx is not None:
+            if hasattr(self, 'sub_packages'):
+                pkgs = []
+                self._sub_pkg_map = {}
+                for sub in self.sub_packages:
+                    cur = ctx.load_package(sub, False)
+                    pkgs.append(cur)
+                    self._sub_pkg_map[sub] = cur
+                    cur.super_packages.append(self)
+                self.sub_packages = pkgs
 
-            # Flag all packages except the first to skip downloading.
-            for pkg in self.sub_packages[1:]:
-                pkg._skip = True
+                # Flag all packages except the first to skip downloading.
+                for pkg in self.sub_packages[1:]:
+                    pkg._skip = True
 
-        else:
-            self.sub_packages = []
+            else:
+                self.sub_packages = []
         self.super_packages = []
+
+    ##
+    ## Test for compatibility of option sets. Under certain conditions
+    ## the same package may or may not need to be reconfigured, this
+    ## method tests if two sets of options need to be reconfigured.
+    ##
+    def is_compatible(self, opts_a, opts_b):
+        return True
 
     @property
     def url(self):
@@ -626,6 +678,9 @@ class Package(object):
         #     text.append(str(ver))
         # return self.name + '<' + ', '.join(text) + '>'
         return self.name
+
+    def find_version(self, name):
+        return self._ver_map.get(name, None)
 
     def needs_configure(self, old_pkg):
 
@@ -785,12 +840,6 @@ class Package(object):
                 return acts
         return None
 
-    ##
-    ## Return the options object for this package.
-    ##
-    def options(self):
-        return self._opts
-
     def merge_options(self, vers, *args):
 
         # Make new dictionary out of first argument.
@@ -850,23 +899,23 @@ class Package(object):
         # headers or libraries to find.
         if has_any:
             name = self.option_name
-            self.ctx.new_arguments()('--' + name + '-dir', dest=name + '-dir', help='Specify base directory for %s.'%self.name)
+            self.ctx.arguments('--' + name + '-dir', dest=name + '-dir', help='base directory for %s'%self.name)
 
         # Check for usage of headers, binaries or libraries.
-        for attr, arg, help in [('binaries', '-bin-dir', 'Specify binary directory for %s.'),
-                                ('headers', '-inc-dir', 'Specify include directory for %s.'),
-                                ('libraries', '-lib-dir', 'Specify library directory for %s.'),
-                                ('url', '-download', 'Download and install %s.')]:
+        for attr, arg, help in [('binaries', '-bin-dir', 'binary directory for %s'),
+                                ('headers', '-inc-dir', 'include directory for %s'),
+                                ('libraries', '-lib-dir', 'library directory for %s'),
+                                ('url', '-download', 'download and install %s')]:
             if avail[attr]:
                 if attr == 'url':
-                    self.ctx.new_arguments()('--' + name + arg, dest=name + arg, action='store_true', help=help%self.name)
+                    self.ctx.arguments('--' + name + arg, dest=name + arg, action='store_true', help=help%self.name)
                 else:
-                    self.ctx.new_arguments()('--' + name + arg, dest=name + arg, help=help%self.name)
+                    self.ctx.arguments('--' + name + arg, dest=name + arg, help=help%self.name)
 
         # If this is a compound package, add options for selecting specific sub-packages.
         if self.sub_packages:
-            self.ctx.new_arguments()('--' + name + '-type', dest=name + '-type', choices=[s.option_name for s in self.sub_packages],
-                                     help='Select package type for compound package.')
+            self.ctx.arguments('--' + name + '-type', dest=name + '-type', choices=[s.option_name for s in self.sub_packages],
+                               help='package type for compound package')
 
     ##
     ##

@@ -1,10 +1,45 @@
-import re, os
+import re, os, json
+from collections import Counter
 from .Node import Node
 from .File import File
 from .conv import to_list
+from .utils import conditions_equal
 import logging
 
-__all__ = ['Rule', 'RuleList']
+__all__ = ['Rule', 'RuleList', 'match_rules']
+
+def are_rules_compatible(x, y):
+    if isinstance(x, Rule):
+        if isinstance(y, Rule):
+            return x.is_compatible(y)
+        else:
+            return False
+    elif isinstance(y, Rule):
+        return False
+    else:
+        return True
+
+def match_rules(rules, ex_rules):
+    if len(rules) != len(ex_rules):
+        return None
+    if len(rules) == 0:
+        return {}
+    rule = rules[0]
+    for ii in range(len(ex_rules)):
+        mapping = {}
+        ex_rule = ex_rules[ii]
+        if are_rules_compatible(rule, ex_rule):
+            src_res = match_rules(rule.parents, ex_rule.parents)
+            if src_res is None:
+                continue
+            ext_res = match_rules(rules[1:], ex_rules[:ii] + ex_rules[ii + 1:])
+            if ext_res is None:
+                continue
+            mapping[rule] = ex_rule
+            mapping.update(ext_res)
+            mapping.update(src_res)
+            return mapping
+    return None
 
 class RuleList(object):
 
@@ -27,6 +62,11 @@ class RuleList(object):
     def __repr__(self):
         return str(self._rules)
 
+    def add_child(self, child):
+        for r in self._rules:
+            if isinstance(r, (Rule, RuleList)):
+                r.add_child(child)
+
     def _expand(self):
         rules = []
         for r in self._rules:
@@ -37,48 +77,48 @@ class RuleList(object):
 
 class Rule(object):
 
-    def __init__(self, source, use, cond=None, options=None):
+    def __init__(self, sources, use=None, cond=None, options={}):
         super(Rule, self).__init__()
-        self.condition = cond
-        self.source = source
-        self._src_nodes = []
-        self.product_nodes = []
-        self.productions = []
-        self.use = use
-        self.options = options
+
+        if not isinstance(sources, (str, list, RuleList, Rule)) and sources is not None:
+            self.load_data(sources)
+
+        else:
+            self.condition = cond
+            self.sources = to_list(sources)
+            self.children = []
+            self.parents = []
+            for s in self.sources:
+                if isinstance(s, (Rule, RuleList)):
+                    s.add_children(self)
+            self._src_nodes = []
+            self.product_nodes = []
+            self.productions = []
+            self.use = use
+            self.options = options
 
     def __eq__(self, op):
         if type(self) != type(op):
             return False
-
-        # TODO: Fix this condition compare.
-        if type(self.condition) != type(op.condition):
+        elif Counter(self.sources) != Counter(op.sources):
             return False
-        if isinstance(self.condition, ArgumentCheck):
-            if not self.condition.compare(op.condition):
-                return False
-        elif isinstance(op.condition, ArgumentCheck):
-            if not op.condition.coimpare(self.condition):
-                return False
-        elif self.condition != op.condition:
+        elif self.use != op.use:
             return False
-
-        # Sources must be the same.
-        if self.source != op.source:
+        elif not conditions_equal(self.condition, op.condition):
             return False
-
-        # The uses must match.
-        if self.use != op.use:
+        elif self.options != op.options:
             return False
-
-        # Options must match.
-        if self.options != op.options:
-            return False
-
-        return True
+        else:
+            return True
 
     def __ne__(self, op):
         return not self.__eq__(op)
+
+    def add_children(self, children):
+        children = to_list(children)
+        self.children.extend(children)
+        for c in children:
+            c.parents.append(self)
 
     @property
     def source_nodes(self):
@@ -99,6 +139,11 @@ class Rule(object):
 
     def __add__(self, op):
         return RuleList(self, op)
+
+    def is_compatible(self, other):
+        if not self.use.is_compatible(other.use):
+            return False
+        return self.use.is_compatible(other.use, self.options)
 
     ##
     ## Scan for files.
@@ -187,3 +232,20 @@ class Rule(object):
 
         logging.debug('Rule: Found %s'%srcs)
         return srcs
+
+    def use_existing(self, ex):
+        self.use.use_existing(ex.use)
+
+    def save_data(self, db):
+        opts = self.options.get() if self.options else {}
+        return {
+            'use': db.key(self.use),
+            'options': json.dumps(opts)
+        }
+
+    def load_data(self, data):
+        self.use = data['use']
+        self.options = data['options'] if 'options' in data else None
+        self.children = []
+        self.parents = []
+        self.sources = []

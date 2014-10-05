@@ -1,15 +1,6 @@
 import argparse
 
-def boolean(string):
-    string = string.lower()
-    if string in ['0', 'f', 'false', 'no', 'off']:
-        return False
-    elif string in ['1', 't', 'true', 'yes', 'on']:
-        return True
-    else:
-        raise ValueError()
-
-class ConfigureAction(argparse.Action):
+class EnableAction(argparse.Action):
     
     def __init__(self, option_strings, dest, required=False, help=None, metavar=None, default=None):
         strings = []
@@ -23,11 +14,13 @@ class ConfigureAction(argparse.Action):
             neg_string = neg_string.replace('--with', '--without')
             strings.append(neg_string)
             self.negative_strings.add(neg_string)
-        super(ConfigureAction, self).__init__(option_strings=strings, dest=dest, nargs='?', const=None, default=default, type=boolean,
-                                              choices=None, required=required, help=help, metavar=metavar)
+        super(EnableAction, self).__init__(
+            option_strings=strings, dest=dest, const=None, default=default, type=bool,
+            choices=None, required=required, help=help, metavar=metavar, nargs=0
+        )
 
     def __call__(self, parser, namespace, value, option_string=None):
-        if value is None:
+        if value is None or value == []:
             value = option_string in self.positive_strings
         elif option_string in self.negative_strings:
             value = not value
@@ -35,41 +28,89 @@ class ConfigureAction(argparse.Action):
 
 class Arguments(object):
 
-    def __init__(self, ctx):
-        self._ctx = ctx
+    def __init__(self, desc=None):
+        self.parser = argparse.ArgumentParser(desc)
+        self.dict = None
+        self.args = type('', (object,), {})
+        self._arg_map = {}
+        self._ex_args = {}
+        self._base_def = {}
 
+    ##
+    ## Add a new argument.
+    ## NOTE: Need to have loaded any arguments by here.
+    ##
     def __call__(self, *args, **kwargs):
+
+        # Figure out the name to use.
+        if 'dest' in kwargs:
+            name = kwargs['dest']
+        elif args[0].startswith('--enable-'):
+            name = args[0][9:]
+        elif args[0].startswith('--with-'):
+            name = args[0][7:]
+        elif args[0][:2] == '--':
+            name = args[0][2:]
+        else:
+            name = args[0][1:]
+        name = name.replace('-', '_')
+
+        # Perform the addition.
+        return self._add(name, list(args), kwargs)
+
+    def parse(self):
+        self.dict = self.parser.parse_args()
+
+    def _add(self, name, args, kwargs):
 
         # Replace any default with None and store the default
         # for later.
         default = kwargs.pop('default', None)
-        kwargs['default'] = None
         if default is None:
             if kwargs.get('action', None) == 'store_true':
                 default = False
             elif kwargs.get('action', None) == 'store_false':
                 default = True
 
-        # If the action is 'boolean' then use an augmented boolean type.
-        if kwargs.get('action', None) == 'boolean':
-            kwargs['action'] = ConfigureAction
+        # Store the baseline default. This should not take into
+        # account previous runs.
+        self._base_def[name] = default
 
-        # Create the argument to get hold of destination name.
-        act = self._ctx.parser.add_argument(*args, **kwargs)
+        # If there is already a value stored from last time,
+        # make that the default.
+        if name in self._ex_args:
+            default = self._ex_args[name]
 
-        # Set the default.
-        self._ctx._def_args[act.dest] = default
-        self._ctx._arg_map[act.dest] = act
+        # Augment the action if needed.
+        if args[0].startswith('--enable-') or args[0].startswith('--with-'):
+            kwargs['action'] = EnableAction
+            if kwargs.get('dest', None) is None:
+                kwargs['dest'] = name
 
-        new_arg = Argument(act.dest, self._ctx)
-        setattr(self, new_arg.name, new_arg)
-        return self
+        # Overwrite the shown default.
+        kwargs['default'] = default
+
+        # Add to the parser and cache the action.
+        self._arg_map[name] = self.parser.add_argument(*args, **kwargs)
+        setattr(self.args, name, self._arg_map[name])
+
+        return self._arg_map[name]
+
+    def save_data(self, args):
+        data = {}
+        for k, v in self._arg_map.iteritems():
+            if v.default != getattr(args, k).default:
+                data[k] = getattr(args, k)
+        return data
+
+    def load_data(self, data):
+        self._ex_args = dict(data)
 
 class Argument(object):
 
-    def __init__(self, name, ctx, use=None, kwargs={}):
+    def __init__(self, name, parent, use=None, kwargs={}):
         self.name = name
-        self.context = ctx
+        self.parent = parent
         self.use = use
         self._kwargs = kwargs
 
@@ -84,7 +125,7 @@ class Argument(object):
 
     def __deepcopy__(self, memo):
         # Don't actually deepcopy anything.
-        return Argument(self.name, self.context, self.use)
+        return Argument(self.name, self.parent, self.use)
 
     def __str__(self):
         return str(self.value())
@@ -94,7 +135,7 @@ class Argument(object):
 
     def value(self):
         if self.use is None:
-            return self.context.argument(self.name)
+            return getattr(self.parent.dict, self.name)
         else:
             attr = getattr(self.use, self.name)
             if callable(attr):
@@ -158,8 +199,8 @@ class ArgumentCheck(object):
         else:
             return self.right == op.right
 
-    def update_context(self, ctx):
-        if isinstance(self.left, Argument):
-            self.left.context = ctx
-        if isinstance(self.right, Argument):
-            self.right.context = ctx
+    # def update_context(self, ctx):
+    #     if isinstance(self.left, Argument):
+    #         self.left.context = ctx
+    #     if isinstance(self.right, Argument):
+    #         self.right.context = ctx

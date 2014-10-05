@@ -1,8 +1,10 @@
-import copy
+import copy, json
 import logging
 from .Node import Node
 from .Argument import ArgumentCheck, Argument
-from .utils import load_class, getarg
+from .Options import OptionDict, OptionJoin, merge
+from .Package import Package, Installation
+from .utils import split_class, load_class, getarg, conditions_equal
 
 ##
 ## Represents a package installation with options.
@@ -11,30 +13,27 @@ class Use(Node):
 
     def __init__(self, package, options=None, cond=None):
         super(Use, self).__init__()
-        self.package = package
-        self.condition = cond
-        self.options = options
-        self.selected = None
-        self.parents = []
-        self._found = False
-        self.package.uses.append(self)
+
+        # If package is not a package and is not None then load
+        # a dictionary.
+        if not isinstance(package, Package) and package is not None:
+            self.load_data(package)
+
+        # Otherwise initialise as usual.
+        else:
+            self.package = package
+            self.condition = cond
+            self.options = options
+            self.selected = None
+            self.parents = []
+            self._found = False
+            self.package.uses.append(self)
 
     def __eq__(self, op):
         if self.package != op.package:
             return False
-
-        # TODO: Fix this condition compare.
-        if type(self.condition) != type(op.condition):
+        if not conditions_equal(self.condition, op.condition):
             return False
-        if isinstance(self.condition, ArgumentCheck):
-            if not self.condition.compare(op.condition):
-                return False
-        elif isinstance(op.condition, ArgumentCheck):
-            if not op.condition.coimpare(self.condition):
-                return False
-        elif self.condition != op.condition:
-            return False
-
         if self.options != op.options:
             return False
         return True
@@ -67,6 +66,13 @@ class Use(Node):
         self.parents.append(grp)
         op.parents.append(grp)
         return grp
+
+    def is_compatible(self, other, opts={}):
+        if self.package != other.package:
+            return False
+        my_opts = merge(self.options, opts)
+        other_opts = merge(other.options, opts)
+        return self.package.is_compatible(my_opts, other_opts)
 
     @property
     def found(self):
@@ -156,6 +162,25 @@ class Use(Node):
             return self.selected.use.selected.feature(self.selected.feature_name).resolve_set(root, use_set)
         else:
             return self.selected.resolve_set(root, use_set)
+
+    def use_existing(self, ex):
+        self.selected = ex.selected
+
+    def save_data(self):
+        opts = self.options.get() if self.options else {}
+        inst = self.selected.save_data() if self.selected else {}
+        return {
+            'package': str(self.package.__class__),
+            'installation': json.dumps(inst),
+            'options': json.dumps(opts)
+        }
+
+    def load_data(self, data):
+        mod, cls = split_class(data['package'])
+        self.package = load_class(mod, cls)()
+        self.selected = Installation(data['installation']) if 'installation' in data and data['installation'] is not None else None
+        self.options = data['options'] if 'options' in data and data['options'] != {} else None
+        self.condition = None
 
 ##
 ##

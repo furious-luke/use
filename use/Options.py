@@ -4,11 +4,53 @@ from .Argument import ArgumentCheck, Argument
 from .conv import to_list
 
 ##
+## Convert argument based options. Options may be dependent
+## on arguments, this method repopulates the option values in
+## the dictionary with evaluated arguments.
+##
+def parse(opts):
+
+    # First replace any argument instances.
+    for k, v in opts.iteritems():
+        if isinstance(v, (Argument, ArgumentCheck)):
+            opts[k] = str(v)
+
+    # Now evaluate any values that need to be replaced. Keep
+    # track of whether any substitutions were made in order to
+    # recursively expand.
+    done = False
+    while not done:
+        done = True
+        for k, v in opts.iteritems():
+            if isinstance(v, basestring):
+                opts[k] = v.format(**opts)
+                if opts[k] != v:
+                    done = False
+
+##
+## Merge combination of OptionDicts and dicts.
+##
+def merge(x, y):
+    if isinstance(x, OptionDict):
+        x = x.get()
+    elif x is None:
+        x = {}
+    else:
+        x = dict(x)
+    if isinstance(y, OptionDict):
+        y = y.get()
+    elif y is None:
+        y = {}
+    x.update(y)
+    return x
+
+##
 ##
 ##
 class Option(object):
 
     def __init__(self, name=None, short_opts=None, long_opts=None, **kwargs):
+        # assert short_opts or long_opts or kwargs.get('text', None)
         self.name = name
         self.short_opts = to_list(short_opts)
         self.long_opts = to_list(long_opts)
@@ -30,7 +72,7 @@ class Option(object):
     def __hash__(self):
         return hash(self.name)
 
-    def __call__(self, value, opts, short=True):
+    def __call__(self, value, opts={}, short=True):
         opt = self._opt(short)
         str_list = []
         if isinstance(value, bool):
@@ -86,7 +128,11 @@ class OptionParser(object):
     def __init__(self):
         self._opts = OrderedDict()
 
-    def add(self, opt):
+    def add(self, *args, **kwargs):
+        if len(kwargs) == 0 and len(args) == 1 and isinstance(args[0], Option):
+            opt = args[0]
+        else:
+            opt = Option(*args, **kwargs)
         self._opts[opt.name] = opt
 
     def __call__(self, bin, *args, **kwargs):
@@ -153,23 +199,29 @@ class OptionDict(object):
     def __add__(self, op):
         return OptionJoin(self, op)
 
-    def get(self):
-        if bool(self.condition):
-            return copy.deepcopy(self._opts)
-        else:
-            return {}
+    ##
+    ## Get a copy of our options. We need to parse the
+    ## resulting options if we are the first entry.
+    ##
+    def get(self, depth=0):
 
-    def parse(self, ctx):
-        for k, v in self._opts.iteritems():
-            if isinstance(v, (Argument, ArgumentCheck)):
-                self._opts[k] = str(v)
+        # Copy our options if we are enabled.
+        if bool(self.condition):
+            opts = copy.deepcopy(self._opts)
+        else:
+            opts = {}
+
+        # If we're the ground level, parse the options.
+        if depth == 0:
+            parse(opts)
+
+        return opts
 
 class OptionJoin(object):
 
     def __init__(self, left, right):
         self.left = left
         self.right = right
-        self._merged = None
 
     def __repr__(self):
         return str(self.get())
@@ -189,28 +241,28 @@ class OptionJoin(object):
     def __add__(self, op):
         return OptionJoin(self, op)
 
-    def get(self):
-        if self._merged is None:
-            self._merged = {}
-            self._update(self.left)
-            self._update(self.right)
-            merged = self._merged
-            self._merged = None
-        # return copy.deepcopy(self._merged)
+    def get(self, depth=0):
+
+        # Combine children, remembering that the right
+        # side trumps the left.
+        merged = {}
+        self._update(merged, self.left)
+        self._update(merged, self.right)
+
+        # If we're the ground level, parse the options.
+        if depth == 0:
+            parse(merged)
+
         return merged
 
-    def parse(self, ctx):
-        self.left.parse(ctx)
-        self.right.parse(ctx)
-
-    def _update(self, op):
+    def _update(self, merged, op):
         for k, v in op.get().iteritems():
-            if k in self._merged:
-                my_val = self._merged[k]
+            if k in merged:
+                my_val = merged[k]
                 if isinstance(my_val, list):
                     for x in to_list(v):
-                        my_val.append(x)
+                        my_val.append(copy.deepcopy(x))
                 else:
-                    self._merged[k] = v
+                    merged[k] = copy.deepcopy(v)
             else:
-                self._merged[k] = copy.deepcopy(v)
+                merged[k] = copy.deepcopy(v)

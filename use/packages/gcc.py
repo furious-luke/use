@@ -1,15 +1,10 @@
-import os, re, logging
+import os, logging
 import use
 from ..Platform import platform
 from ..Action import Command
-from ..Options import Option
-from ..File import File
 from ..Scanner import CScanner
-from ..utils import getarg
-from ..conv import to_list, to_iter
 
-class Default(use.Version):
-    version = 'default'
+class default(use.Version):
     binaries = ['gcc']
 
     def actions(self, inst, sources, targets=[], options={}):
@@ -17,33 +12,34 @@ class Default(use.Version):
 
 class gcc(use.Package):
     default_binary_filename = 'a.out'
-    versions = [Default]
+    versions = [default]
 
     def __init__(self, *args, **kwargs):
         super(gcc, self).__init__(*args, **kwargs)
-        self._opts.add(Option('compile', '-c'))
-        self._opts.add(Option('profile', '-pg'))
-        self._opts.add(Option('pic', '-fPIC'))
-        self._opts.add(Option('openmp', '-fopenmp'))
-        self._opts.add(Option('cxx11', '-std=c++11'))
-        self._opts.add(Option('optimise', '-O', space=False))
-        self._opts.add(Option('symbols', '-g'))
+        add = self.option_parser.add
+        add('compile', '-c')
+        add('profile', '-pg')
+        add('pic', '-fPIC')
+        add('openmp', '-fopenmp')
+        add('cxx11', '-std=c++11')
+        add('optimise', '-O', space=False)
+        add('symbols', '-g')
         if platform.os_name == 'darwin':
-            self._opts.add(Option('shared_lib', text='-dynamiclib -install_name {target.abspath} -undefined dynamic_lookup'))
+            add('shared_lib', text='-dynamiclib -install_name {target.abspath} -undefined dynamic_lookup')
         else:
-            self._opts.add(Option('shared_lib', '-shared'))
-        self._opts.add(Option('define', '-D', space=False))
-        self._opts.add(Option('targets', '-o'))
-        self._opts.add(Option('header_dirs', '-I'))
-        self._opts.add(Option('library_dirs', '-L'))
+            add('shared_lib', '-shared')
+        add('define', '-D', space=False)
+        add('targets', '-o')
+        add('header_dirs', '-I')
+        add('library_dirs', '-L')
         if platform.os_name != 'darwin':
-            self._opts.add(Option('rpath_dirs', '-Wl,-rpath=', space=False, abspath=True))
-        self._opts.add(Option('sources'))
-        self._opts.add(Option('libraries', '-l', space=False))
+            add('rpath_dirs', '-Wl,-rpath=', space=False, abspath=True)
+        add('sources')
+        add('libraries', '-l', space=False)
         if platform.os_name == 'darwin':
-            self._opts.add(Option('coverage', text=''))
+            add('coverage', text='')
         else:
-            self._opts.add(Option('coverage', text='-fprofile-arcs -ftest-coverage'))
+            add('coverage', text='-fprofile-arcs -ftest-coverage')
 
     ##
     ## gcc's productions. The standard gcc production will

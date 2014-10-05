@@ -12,6 +12,7 @@ from .Options import OptionDict
 from .File import File
 from .conv import to_list
 from .Package import Package
+from .DB import DB
 import logging
 
 __all__ = ['Context']
@@ -22,9 +23,12 @@ __all__ = ['Context']
 ##
 class Context(object):
 
-    def __init__(self):
+    def __init__(self, db=True, db_path=None):
+        self._db = DB(db_path) if db else None
+
         self.packages = []
         self.rules = []
+        self._ex_rules = []
         self.uses = []
         self._node_map = {}
         self.targets = []
@@ -35,14 +39,11 @@ class Context(object):
         self.old_bldrs = {}
         self._exiting = False
 
-        self.arguments = None
-        self._def_args = {}
-        self._arg_map = {}
-        self.parser = argparse.ArgumentParser('"Use": Software configuration and build.')
-        self.parser.add_argument('targets', nargs='*', help='Specify build targets.')
-        self.parser.add_argument('-s', dest='show_config', action='store_true', help='Show current configuration.')
-        self.new_arguments()('--enable-download-all', dest='download_all', action='boolean', help='Download and install all dependencies.')
-        self.new_arguments()('-j', dest='num_threads', type=int, default=1, help='Number of threads.')
+        self.arguments = Arguments('use')
+        self.arguments.parser.add_argument('targets', nargs='*', help='specify build targets')
+        self.arguments.parser.add_argument('--show-config', '-s', dest='show_config', action='store_true', help='show current configuration')
+        self.arguments('--enable-download-all', help='download and install all dependencies')
+        self.arguments('-j', dest='num_threads', type=int, default=1, help='number of threads')
 
     def __eq__(self, op):
 
@@ -95,25 +96,25 @@ class Context(object):
     ##
     def parse_arguments(self):
 
-        # Add arguments.
+        # Add arguments from packages.
         for pkg in self.packages:
-            pkg.add_arguments(self.parser)
+            pkg.add_arguments(self.arguments)
 
         # Parse.
-        self.arguments = self.parser.parse_args()
+        self.arguments.parse()
 
         # Check if we have an old structure to use, unless the user
         # requested a reconfiguration.
-        if 'configure' not in self.arguments.targets and os.path.exists('.use.db'):
+        if 'configure' not in self.arguments.dict.targets and os.path.exists('.use.db'):
             with open('.use.db', 'r') as inf:
                 old_ctx = pickle.load(inf)
 
             # Only update arguments if nothing for that argument was
             # given on the command line.
-            for k, v in self.arguments.__dict__.iteritems():
+            for k, v in self.arguments.dict.__dict__.iteritems():
                 if v is not None:
                     old_ctx.arguments.__dict__[k] = v
-            self.arguments = old_ctx.arguments
+            # self.arguments = old_ctx.arguments
 
         # Parse the options now.
         for use in self.uses:
@@ -132,6 +133,26 @@ class Context(object):
         if val is None:
             return self._def_args.get(name, None)
         return val
+
+    def save(self):
+        with tempfile.NamedTemporaryFile(delete=False) as file:
+            fn = file.name
+        db = DB(fn)
+        db.save_uses(self.uses)
+        db.save_rules(self.rules)
+        db.flush()
+        del db
+        if self._db:
+            cur_fn = self._db.filename
+            self._db.delete()
+        else:
+            cur_fn = DB.DEFAULT_FILENAME
+        os.move(fn, cur_fn)
+
+    def load(self):
+        self._ex_uses = self._db.load_uses() if self._db else []
+        self._ex_rules = self._db.load_rules() if self._db else []
+        self._db.load_arguments(self.arguments)
 
     ##
     ## Search for packages.
@@ -213,37 +234,46 @@ class Context(object):
     ##
     ##
     def needs_configure(self):
+        logging.debug('Context: Checking if we need to to reconfigure.')
 
         # Check if the user requested configuration.
         if 'configure' in self.arguments.targets or 'reconfigure' in self.arguments.targets:
+            logging.debug('Context:  User requested configuration.')
             sys.stdout.write('User requested configuration.\n')
             return True
 
         # If we have not run before then definitely configure.
-        if not os.path.exists('.use.db'):
+        if not self._db.exists():
+            logging.debug('Context:  No prior configuration to use.')
             sys.stdout.write('No prior configuration to use.\n')
             return True
 
-        # Check if anything has changed in the build structure.
-        if os.path.exists('.use.db'):
-            with open('.use.db', 'r') as inf:
-                old_ctx = pickle.load(inf)
-        else:
-            old_ctx = None
-        if self != old_ctx:
-            sys.stdout.write('Build structure has changed.\n')
+        # Check if we can match existing configuration.
+        if not self.match_configuration():
+            logging.debug('Context:  Cannot match existing configuration.')
+            sys.stdout.write('Cannot match existing configuration.')
             return True
 
-        # Check each package for reconfiguration requests.
-        for pkg in self.packages:
-            if pkg.needs_configure(old_ctx._pkg_map[pkg.__class__]):
-                sys.stdout.write(pkg.name + ' has changed.\n')
-                return True
-
-        # Now use the old context.
-        self._use_old_ctx(old_ctx)
-
         return False
+
+    ##
+    ##
+    ##
+    def match_configuration(self):
+
+        # First, find the list of tree roots for old and new.
+        roots = [r for r in self.rules if not r.children]
+        ex_roots = [r for r in self._ex_rules if not r.children]
+
+        # Use the above function to determine if the rules graph
+        # has changed form.
+        mapping = match_rules(roots, ex_roots)
+
+        if mapping is None:
+            return False
+        for k, v in mapping.iteritems():
+            k.use_existing(v)
+        return True
 
     ##
     ## Scan files for rule sources.
@@ -543,12 +573,6 @@ class Context(object):
         self._arg_map = _arg_map
         self._node_map = _node_map
 
-    ##
-    ## Load context from file.
-    ##
-    def load(self, base_dir):
-        pass
-
     def _use_old_ctx(self, old_ctx):
 
         # Copy over all the package contents.
@@ -587,8 +611,7 @@ class Context(object):
 
     def node(self, node_class, *args, **kwargs):
         n = node_class(*args, **kwargs)
-        rep = repr(n)
-        return self._node_map.setdefault(rep, n)
+        return self._node_map.setdefault(n.key, n)
 
     def file(self, *args, **kwargs):
         return self.node(File, *args, **kwargs)

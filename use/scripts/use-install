@@ -1,0 +1,68 @@
+#!/usr/bin/env python
+
+##
+## The primary entry point.
+##
+
+import os, sys, signal, logging, argparse
+
+# If we are unable to import directly, try
+# to modify the path to do so.
+try:
+    from use.Installer import Installer
+except:
+    sys.path.insert(0, os.path.join(sys.path[0], '..', '..'))
+    from use.Installer import Installer
+from use.utils import load_class
+from use.Context import Context
+
+# Setup debugging logging.
+try:
+    os.remove('install.log')
+except:
+    pass
+logging.basicConfig(level=logging.DEBUG, filename='install.log')
+
+# Parse input.
+parser = argparse.ArgumentParser(description='Install software.')
+parser.add_argument('package', help='package name')
+parser.add_argument('version', nargs='?', default=None, help='package version')
+parser.add_argument('--prefix', default='/usr/local', help='installation prefix')
+parser.add_argument('--work', default=None, help='work directory')
+args = parser.parse_args()
+
+# Try to load the package.
+ctx = Context()
+try:
+    pkg_class = load_class(args.package)
+    pkg = pkg_class(ctx)
+except Exception as e:
+    print 'Failed to load package class.'
+    logging.debug(str(e))
+    sys.exit(1)
+
+# Try to locate the version, if there is one.
+if args.version:
+    ver = pkg.find_version(args.version)
+    if ver is None:
+        print 'Failed to locate version.'
+        sys.exit(1)
+else:
+    ver = pkg.versions[0]
+
+# Where has this been launched from?
+launch_dir = os.getcwd()
+
+# Before building, prepare a signal handler to catch interrupts.
+def terminate(signal, frame):
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    sys.stdout.write('\nInterrupted.\n')
+    sys.exit(0)
+signal.signal(signal.SIGINT, terminate)
+
+# Try to perform the install.
+print 'Going to install: %s (%s)'%(pkg.name, ver.name)
+print 'Location: %s'%args.prefix
+if args.work is not None:
+    print 'Workspace: %s'%args.work
+ver.install(args.prefix, args.work)
