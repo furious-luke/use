@@ -36,7 +36,7 @@ class Installation(Node):
             self._args = {}
 
     def __repr__(self):
-        if self.location.base:
+        if self.location and self.location.base:
             return '"%s"'%self.location.base
         else:
             vals = [('binaries', self.binaries),
@@ -221,7 +221,7 @@ class Version(object):
     ## Search for locations.
     ##
     def search(self):
-        logging.debug('Package: Searching for version: ' + self.version)
+        logging.debug('Version: Searching for version: ' + str(self))
 
         # If there is nothing to search for then add a base installation
         # and bail.
@@ -419,7 +419,7 @@ class Version(object):
         logging.debug('Version: Package: ' + self.package.name + ', version: ' + self.version)
 
         for inst in self._potential_installations:
-            
+
             # Now check that the version matches.
             res = self.check_version(inst)
             if res:
@@ -899,7 +899,7 @@ class Package(object):
         # headers or libraries to find.
         if has_any:
             name = self.option_name
-            self.ctx.arguments('--' + name + '-dir', dest=name + '-dir', help='base directory for %s'%self.name)
+            self.ctx.arguments('--' + name + '-dir', help='base directory for %s'%self.name)
 
         # Check for usage of headers, binaries or libraries.
         for attr, arg, help in [('binaries', '-bin-dir', 'binary directory for %s'),
@@ -908,13 +908,13 @@ class Package(object):
                                 ('url', '-download', 'download and install %s')]:
             if avail[attr]:
                 if attr == 'url':
-                    self.ctx.arguments('--' + name + arg, dest=name + arg, action='store_true', help=help%self.name)
+                    self.ctx.arguments('--' + name + arg, action='store_true', help=help%self.name)
                 else:
-                    self.ctx.arguments('--' + name + arg, dest=name + arg, help=help%self.name)
+                    self.ctx.arguments('--' + name + arg, help=help%self.name)
 
         # If this is a compound package, add options for selecting specific sub-packages.
         if self.sub_packages:
-            self.ctx.arguments('--' + name + '-type', dest=name + '-type', choices=[s.option_name for s in self.sub_packages],
+            self.ctx.arguments('--' + name + '-type', choices=[s.option_name for s in self.sub_packages],
                                help='package type for compound package')
 
     ##

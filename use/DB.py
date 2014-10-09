@@ -122,8 +122,8 @@ class DB(object):
                              VALUES('{parent}', '{child}');'''.format(**data)
                     self._buf.append(str)
 
-    def save_arguments(self, args, vals):
-        data = args.save_data(vals)
+    def save_arguments(self, args):
+        data = args.save_data()
         for k, v in data.iteritems():
             v = json.dumps(v).replace("'", "''")
             str = '''INSERT OR REPLACE INTO arguments(key, value)
@@ -137,6 +137,12 @@ class DB(object):
         for entry in cur:
             data[entry['key']] = json.loads(entry['value'])
         args.load_data(data)
+
+    def delete(self):
+        # try:
+        os.remove(self.filename)
+        # except:
+        #     pass
 
     def flush(self):
         if self._buf:

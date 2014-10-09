@@ -97,6 +97,9 @@ class Rule(object):
             self.use = use
             self.options = options
 
+    def __repr__(self):
+        return '"%s"'%str(self.sources) + ' -> ' + str(self.use)
+
     def __eq__(self, op):
         if type(self) != type(op):
             return False
@@ -133,9 +136,6 @@ class Rule(object):
     @property
     def nodes(self):
         return self.source_nodes + self.product_nodes
-
-    def __repr__(self):
-        return '"%s"'%str(self.source) + ' -> ' + str(self.use)
 
     def __add__(self, op):
         return RuleList(self, op)

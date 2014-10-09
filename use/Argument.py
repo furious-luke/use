@@ -58,8 +58,17 @@ class Arguments(object):
         # Perform the addition.
         return self._add(name, list(args), kwargs)
 
+    def __getitem__(self, key):
+        return getattr(self.dict, key, None)
+
+    def __iter__(self):
+        return self._arg_map.iteritems()
+
     def parse(self):
         self.dict = self.parser.parse_args()
+
+    def is_modified(self, name):
+        return self[name] != self._base_def[name]
 
     def _add(self, name, args, kwargs):
 
@@ -96,10 +105,12 @@ class Arguments(object):
 
         return self._arg_map[name]
 
-    def save_data(self, args):
+    def save_data(self, args=None):
+        if args is None:
+            args = self.dict
         data = {}
         for k, v in self._arg_map.iteritems():
-            if v.default != getattr(args, k).default:
+            if self.is_modified(k):
                 data[k] = getattr(args, k)
         return data
 

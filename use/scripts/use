@@ -61,11 +61,6 @@ globals_dict = {
     'dummies': dummies,
 }
 
-# Load existing information if it exists. I need to
-# do this before executing the script due to argument
-# particulars.
-ctx.load()
-
 # Try to execute the build script.
 locals_dict = {}
 # exec(open(script).read(), globals(), locals_dict)
@@ -74,13 +69,8 @@ execfile(script, globals_dict, locals_dict)
 # # Augment the trees.
 # ctx.augment()
 
-# Handle arguments.
 ctx.parse_arguments()
-
-# # Perform configuration.
-# ctx.configure()
-
-# # Locate source files.
+ctx.configure()
 # ctx.find_sources()
 
 # # Expand into products.

@@ -1,4 +1,4 @@
-import sys, os, argparse, pickle
+import sys, os, argparse, pickle, tempfile, shutil
 try:
     import threadpool
 except:
@@ -38,8 +38,13 @@ class Context(object):
         self.src_crcs = {}
         self.old_bldrs = {}
         self._exiting = False
-
         self.arguments = Arguments('use')
+
+        # Load existing information if it exists. I need to
+        # do this before executing the script due to argument
+        # particulars.
+        self.load()
+
         self.arguments.parser.add_argument('targets', nargs='*', help='specify build targets')
         self.arguments.parser.add_argument('--show-config', '-s', dest='show_config', action='store_true', help='show current configuration')
         self.arguments('--enable-download-all', help='download and install all dependencies')
@@ -103,36 +108,36 @@ class Context(object):
         # Parse.
         self.arguments.parse()
 
-        # Check if we have an old structure to use, unless the user
-        # requested a reconfiguration.
-        if 'configure' not in self.arguments.dict.targets and os.path.exists('.use.db'):
-            with open('.use.db', 'r') as inf:
-                old_ctx = pickle.load(inf)
+        # # Check if we have an old structure to use, unless the user
+        # # requested a reconfiguration.
+        # if 'configure' not in self.arguments.dict.targets and os.path.exists('.use.db'):
+        #     with open('.use.db', 'r') as inf:
+        #         old_ctx = pickle.load(inf)
 
-            # Only update arguments if nothing for that argument was
-            # given on the command line.
-            for k, v in self.arguments.dict.__dict__.iteritems():
-                if v is not None:
-                    old_ctx.arguments.__dict__[k] = v
-            # self.arguments = old_ctx.arguments
+        #     # Only update arguments if nothing for that argument was
+        #     # given on the command line.
+        #     for k, v in self.arguments.dict.__dict__.iteritems():
+        #         if v is not None:
+        #             old_ctx.arguments.__dict__[k] = v
+        #     # self.arguments = old_ctx.arguments
 
-        # Parse the options now.
-        for use in self.uses:
-            if use.options is not None:
-                use.options.parse(self)
-        for rule in self.rules:
-            if rule.options is not None:
-                rule.options.parse(self)
+        # # Parse the options now.
+        # for use in self.uses:
+        #     if use.options is not None:
+        #         use.options.parse(self)
+        # for rule in self.rules:
+        #     if rule.options is not None:
+        #         rule.options.parse(self)
 
-        # Have packages handle user arguments.
-        for pkg in self.packages:
-            pkg.parse_arguments(self.arguments)
+        # # Have packages handle user arguments.
+        # for pkg in self.packages:
+        #     pkg.parse_arguments(self.arguments)
 
-    def argument(self, name):
-        val = getattr(self.arguments, name, None)
-        if val is None:
-            return self._def_args.get(name, None)
-        return val
+    # def argument(self, name):
+    #     val = getattr(self.arguments, name, None)
+    #     if val is None:
+    #         return self._def_args.get(name, None)
+    #     return val
 
     def save(self):
         with tempfile.NamedTemporaryFile(delete=False) as file:
@@ -140,6 +145,7 @@ class Context(object):
         db = DB(fn)
         db.save_uses(self.uses)
         db.save_rules(self.rules)
+        db.save_arguments(self.arguments)
         db.flush()
         del db
         if self._db:
@@ -147,7 +153,7 @@ class Context(object):
             self._db.delete()
         else:
             cur_fn = DB.DEFAULT_FILENAME
-        os.move(fn, cur_fn)
+        shutil.move(fn, cur_fn)
 
     def load(self):
         self._ex_uses = self._db.load_uses() if self._db else []
@@ -177,6 +183,7 @@ class Context(object):
         sys.stdout.write('  Installing packages...\n')
         for pkg in self.packages:
             pkg.check_download()
+        sys.stdout.write('    done.\n')
 
         # Repeat the 'search' operation on each package until all return
         # True, indicating there are no new potential locations.
@@ -207,17 +214,17 @@ class Context(object):
             self.resolver(self)
             sys.stdout.write(' done.\n')
 
-        # Clear CRCs and old builders.
-        self.crcs = {}
-        self.src_crcs = {}
-        self.old_bldrs = {}
+        # # Clear CRCs and old builders.
+        # self.crcs = {}
+        # self.src_crcs = {}
+        # self.old_bldrs = {}
 
         # Save configuration results.
         self.save()
 
-        sys.stdout.write('  Success.\n')
-        sys.stdout.write('  Configuration details:\n')
-        self.write_configuration(sys.stdout, 4)
+        # sys.stdout.write('  Success.\n')
+        # sys.stdout.write('  Configuration details:\n')
+        # self.write_configuration(sys.stdout, 4)
 
         # Write directions.
         sys.stdout.write('\n^^^ Scroll up to see the results of configuring. ^^^\n')
@@ -237,7 +244,7 @@ class Context(object):
         logging.debug('Context: Checking if we need to to reconfigure.')
 
         # Check if the user requested configuration.
-        if 'configure' in self.arguments.targets or 'reconfigure' in self.arguments.targets:
+        if 'configure' in self.arguments['targets'] or 'reconfigure' in self.arguments['targets']:
             logging.debug('Context:  User requested configuration.')
             sys.stdout.write('User requested configuration.\n')
             return True
@@ -251,7 +258,7 @@ class Context(object):
         # Check if we can match existing configuration.
         if not self.match_configuration():
             logging.debug('Context:  Cannot match existing configuration.')
-            sys.stdout.write('Cannot match existing configuration.')
+            sys.stdout.write('Cannot match existing configuration.\n')
             return True
 
         return False
@@ -536,42 +543,43 @@ class Context(object):
             self.crcs[repr(node)] = node.current_crc(self)
             self.src_crcs[repr(node)] = node.current_source_crcs(self)
 
-    ##
-    ## Store context state to file.
-    ##
-    def save(self):
+    # ##
+    # ## Store context state to file.
+    # ##
+    # def save(self):
+    #     self.
 
-        # Parser won't pickle.
-        try:
-            parser = self.parser
-        except:
-            # TODO: Sometimes there is an error here.
-            import pdb
-            pdb.set_trace()
-        targets = self.arguments.targets
-        _arg_map = self._arg_map
-        _node_map = self._node_map
-        del self.parser
-        self.arguments.targets = None
-        del self._arg_map
-        del self._node_map
-        if hasattr(self, '_pool'):
-            del self._pool
+    #     # # Parser won't pickle.
+    #     # try:
+    #     #     parser = self.parser
+    #     # except:
+    #     #     # TODO: Sometimes there is an error here.
+    #     #     import pdb
+    #     #     pdb.set_trace()
+    #     # targets = self.arguments.targets
+    #     # _arg_map = self._arg_map
+    #     # _node_map = self._node_map
+    #     # del self.parser
+    #     # self.arguments.targets = None
+    #     # del self._arg_map
+    #     # del self._node_map
+    #     # if hasattr(self, '_pool'):
+    #     #     del self._pool
 
-        # Set the pickle recursion limit much higher.
-        sys.setrecursionlimit(10000)
+    #     # # Set the pickle recursion limit much higher.
+    #     # sys.setrecursionlimit(10000)
 
-        with open('.use.db', 'w') as out:
-            pickle.dump(self, out)
+    #     # with open('.use.db', 'w') as out:
+    #     #     pickle.dump(self, out)
 
-        # Reset recursion limit.
-        sys.setrecursionlimit(1000)
+    #     # # Reset recursion limit.
+    #     # sys.setrecursionlimit(1000)
 
-        # Reset.
-        self.parser = parser
-        self.arguments.targets = targets
-        self._arg_map = _arg_map
-        self._node_map = _node_map
+    #     # # Reset.
+    #     # self.parser = parser
+    #     # self.arguments.targets = targets
+    #     # self._arg_map = _arg_map
+    #     # self._node_map = _node_map
 
     def _use_old_ctx(self, old_ctx):
 
@@ -639,15 +647,15 @@ class Context(object):
 
         # If the user requested to see current configuration then
         # do so now, unless they wished to clean.
-        if self.arguments.show_config:
+        if self.arguments['show_config']:
             strm.write(indent*' ' + 'Current arguments:\n')
             indent += 2
-            for k, v in self.arguments.__dict__.iteritems():
-                if k in ['show_config']:
+            for name, arg in self.arguments:
+                if name in ['show_config'] or not self.arguments.is_modified(name):
                     continue
-                if v is not None and (not isinstance(v, list) or len(v) > 0):
-                    arg = self._arg_map.get(k)
-                    strm.write(indent*' ' + '{} {}\n'.format(arg.option_strings[0], v))
+                val = self.arguments[name]
+                if val is not None and (not isinstance(val, list) or len(val) > 0):
+                    strm.write(indent*' ' + '{} {}\n'.format(arg.option_strings[0], val))
             indent -= 2
             strm.write('Current configuration:\n')
             self.write_configuration(strm, indent + 2)
