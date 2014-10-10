@@ -6,4 +6,4 @@ argument('--with-opengl', help='use opengl')
 gcc = use('gcc')
 mpi = use('mpi')
 
-ex = rule('examples/crc/src/*.cc', gcc, options={'sharedlibrary': True})
+ex = rule('crc/src/.*\.cc', gcc, base='examples', options={'sharedlibrary': True})

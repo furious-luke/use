@@ -472,16 +472,17 @@ class Context(object):
         self.uses.append(use)
         return use
 
-    def new_rule(self, src, use, *args, **kwargs):
+    def new_rule(self, *args, **kwargs):
 
         # # We must be able to locate the requested use already
         # # in the graph.
         # assert use in self.uses
 
         # Create a new rule to encapsulate this.
-        opts = self.new_options(**kwargs)
-        cond = args[0] if len(args) else None
-        rule = Rule(src, use, cond, options=opts)
+        # opts = self.new_options(**kwargs)
+        # cond = args[0] if len(args) else None
+        # rule = Rule(src, use, cond, options=opts)
+        rule = Rule(self, *args, **kwargs)
 
         # # Source can either be a regular expression, a list
         # # of regular expressions or a RuleList. If we have a rule

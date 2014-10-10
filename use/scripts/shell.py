@@ -45,6 +45,12 @@ if not no_startup:
             except NameError:
                 pass
 
+# Where has this been launched from?
+launch_dir = os.getcwd()
+script = os.path.join(launch_dir, 'usescript.py')
+if not os.path.exists(script):
+    script = None
+
 # Need a context.
 ctx = Context()
 
@@ -58,7 +64,7 @@ dummies = type('dummies', (object,), dict(always=Always))
 globals_dict = {
     'list_packages': ctx.list_packages,
     'platform': platform,
-    'arguments': ctx.new_arguments,
+    'argument': ctx.arguments,
     'options': ctx.new_options,
     'use': ctx.new_use,
     'rule': ctx.new_rule,
@@ -68,5 +74,11 @@ globals_dict = {
     'dummies': dummies,
 }
 
+# Try to execute the build script.
+locals_dict = {}
+if script is not None:
+    execfile(script, globals_dict, locals_dict)
+
 imported_objects.update(globals_dict)
+imported_objects.update(locals_dict)
 code.interact(local=imported_objects)

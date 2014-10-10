@@ -77,25 +77,30 @@ class RuleList(object):
 
 class Rule(object):
 
-    def __init__(self, sources, use=None, cond=None, options={}):
-        super(Rule, self).__init__()
+    def __init__(self, ctx, sources, use=None, cond=None, base=None, options={}):
+        self.ctx = ctx
 
-        if not isinstance(sources, (str, list, RuleList, Rule)) and sources is not None:
+        # The rule can be initialised from some kind of dictionary, indicating
+        # it was loaded from storage.
+        if not isinstance(sources, (str, list, tuple, RuleList, Rule)) and sources is not None:
             self.load_data(sources)
 
         else:
-            self.condition = cond
             self.sources = to_list(sources)
+            self.use = use
+            self.cond = cond
+            self.base = base
+            self.opts = options
             self.children = []
             self.parents = []
+            self.product_nodes = []
+            self.productions = []
+            self._src_nodes = []
+
+            # Add myself as a child to any sources which are rules.
             for s in self.sources:
                 if isinstance(s, (Rule, RuleList)):
                     s.add_children(self)
-            self._src_nodes = []
-            self.product_nodes = []
-            self.productions = []
-            self.use = use
-            self.options = options
 
     def __repr__(self):
         return '"%s"'%str(self.sources) + ' -> ' + str(self.use)
@@ -148,19 +153,20 @@ class Rule(object):
     ##
     ## Scan for files.
     ##
-    def find_sources(self, ctx):
-        logging.debug('Rule: Looking at source %s'%repr(self.source))
+    def find_sources(self):
+        logging.debug('Rule: Looking at source %s'%repr(self.sources))
 
-        # If our source is a string then locate any matching files.
-        if isinstance(self.source, (basestring, tuple)):
-            if isinstance(self.source, tuple):
-                dir = self.source[0]
-                src = self.source[1]
-            else:
-                dir = '.'
-                src = self.source
-            files = self.match_sources(dir, src)
-            self._src_nodes = [ctx.file(f) for f in files]
+        # Find sources that are strings and treat them as file patterns.
+        mapping = {}
+        for src in self.sources:
+            if isinstance(src, basestring):
+                dir = self.base if self.base is not None else '.'
+                ptrn = src
+                files = self.match_sources(dir, ptrn)
+                self._src_nodes = [self.ctx.file(f) for f in files]
+                mapping[src] = self._src_nodes
+
+        return mapping
 
     def scan(self, ctx):
         logging.debug('Rule: Scanning for dependencies.')
