@@ -146,6 +146,9 @@ class Use(Node):
     def expand(self, nodes, options={}):
         if self.condition is not None and not bool(self.condition):
             return None
+        if self.selected is None:
+            print 'Use has not been configured.'
+            return None
         prods = self.selected.expand(nodes, self.options, options)
         if prods is not None:
             self.apply_features(prods, options)

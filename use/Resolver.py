@@ -91,6 +91,7 @@ class Resolver(Node):
         del self._inst_iters
 
         logging.debug('Resolver: Done resolving package installations.')
+        return True
 
     def check_use(self, use):
         from .Feature import FeatureUse

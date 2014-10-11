@@ -39,6 +39,7 @@ class Context(object):
         self.old_bldrs = {}
         self._exiting = False
         self.arguments = Arguments('use')
+        self._args_done = False
 
         # Load existing information if it exists. I need to
         # do this before executing the script due to argument
@@ -49,6 +50,9 @@ class Context(object):
         self.arguments.parser.add_argument('--show-config', '-s', dest='show_config', action='store_true', help='show current configuration')
         self.arguments('--enable-download-all', help='download and install all dependencies')
         self.arguments('-j', dest='num_threads', type=int, default=1, help='number of threads')
+
+        self.verbose = True
+        self.shell = False
 
     def __eq__(self, op):
 
@@ -107,6 +111,7 @@ class Context(object):
 
         # Parse.
         self.arguments.parse()
+        self._args_done = True
 
         # # Check if we have an old structure to use, unless the user
         # # requested a reconfiguration.
@@ -165,6 +170,10 @@ class Context(object):
     ##
     def configure(self):
 
+        # Check if we've parsed the arguments.
+        if not self._args_done:
+            self.parse_arguments()
+
         # Only continue if there is a need to reconfigure.
         if not self.needs_configure():
             self.show_configuration(sys.stdout)
@@ -202,7 +211,8 @@ class Context(object):
         sys.stdout.write('  Checking candidates...')
         sys.stdout.flush()
         for pkg in self.packages:
-            pkg.check()
+            if not pkg.check():
+                return False
         sys.stdout.write(' done.\n')
 
         # We have our list of available packages now. Analyse the entire build
@@ -211,31 +221,23 @@ class Context(object):
         if self.resolver is not None:
             sys.stdout.write('  Resolving installations...')
             sys.stdout.flush()
-            self.resolver(self)
+            if not self.resolver(self):
+                return False
             sys.stdout.write(' done.\n')
 
-        # # Clear CRCs and old builders.
-        # self.crcs = {}
-        # self.src_crcs = {}
-        # self.old_bldrs = {}
+        # If we are not in the shell, print some instructions.
+        if not self.shell:
+            sys.stdout.write('\n^^^ Scroll up to see the results of configuring. ^^^\n')
+            sys.stdout.write('From here you can:\n')
+            sys.stdout.write('  Build:              use\n')
+            sys.stdout.write('  Show configuration: use -s\n')
+            sys.stdout.write('  Reconfigure:        use configure [options]\n')
+            sys.stdout.write('  Show help:          use -h\n')
 
-        # Save configuration results.
-        self.save()
-
-        # sys.stdout.write('  Success.\n')
-        # sys.stdout.write('  Configuration details:\n')
-        # self.write_configuration(sys.stdout, 4)
-
-        # Write directions.
-        sys.stdout.write('\n^^^ Scroll up to see the results of configuring. ^^^\n')
-        sys.stdout.write('From here you can:\n')
-        sys.stdout.write('  Build:              use\n')
-        sys.stdout.write('  Show configuration: use -s\n')
-        sys.stdout.write('  Reconfigure:        use configure [options]\n')
-        sys.stdout.write('  Show help:          use -h\n')
-
-        # Now exit.
-        sys.exit()
+        # If we're in the shell, update the stored rules, etc so that
+        # we don't perform a redundant configure.
+        self._ex_rules = self.rules
+        self._ex_uses = self.uses
 
     ##
     ##
@@ -482,7 +484,7 @@ class Context(object):
         # opts = self.new_options(**kwargs)
         # cond = args[0] if len(args) else None
         # rule = Rule(src, use, cond, options=opts)
-        rule = Rule(self, *args, **kwargs)
+        rule = Rule(*args, **kwargs)
 
         # # Source can either be a regular expression, a list
         # # of regular expressions or a RuleList. If we have a rule

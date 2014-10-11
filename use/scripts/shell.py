@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 import code, os, sys, platform
 
@@ -53,6 +53,8 @@ if not os.path.exists(script):
 
 # Need a context.
 ctx = Context()
+ctx.verbose = False
+ctx.shell = True
 
 # Insert all the global methods and such I want
 # available to the user.
@@ -72,6 +74,7 @@ globals_dict = {
     'files': files,
     'identity': identity,
     'dummies': dummies,
+    'configure': ctx.configure,
 }
 
 # Try to execute the build script.

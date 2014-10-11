@@ -440,6 +440,7 @@ class Version(object):
                     logging.debug('Installation check failed.')
 
         logging.debug('Version: Done checking.')
+        return True
 
     def check_version(self, loc):
         return True
@@ -832,6 +833,7 @@ class Package(object):
     def check(self):
         for ver in self.iter_versions():
             ver.check()
+        return True
 
     def actions(self, inst, *args, **kwargs):
         for ftr in inst.features:

@@ -2,6 +2,7 @@ import re, os, json
 from collections import Counter
 from .Node import Node
 from .File import File
+from .Options import OptionDict
 from .conv import to_list
 from .utils import conditions_equal
 import logging
@@ -77,8 +78,7 @@ class RuleList(object):
 
 class Rule(object):
 
-    def __init__(self, ctx, sources, use=None, cond=None, base=None, options={}):
-        self.ctx = ctx
+    def __init__(self, sources, use=None, cond=None, base=None, options={}):
 
         # The rule can be initialised from some kind of dictionary, indicating
         # it was loaded from storage.
@@ -90,7 +90,7 @@ class Rule(object):
             self.use = use
             self.cond = cond
             self.base = base
-            self.opts = options
+            self.opts = OptionDict(options)
             self.children = []
             self.parents = []
             self.product_nodes = []
@@ -112,9 +112,9 @@ class Rule(object):
             return False
         elif self.use != op.use:
             return False
-        elif not conditions_equal(self.condition, op.condition):
+        elif not conditions_equal(self.cond, op.cond):
             return False
-        elif self.options != op.options:
+        elif self.opts != op.opts:
             return False
         else:
             return True
@@ -130,12 +130,12 @@ class Rule(object):
 
     @property
     def source_nodes(self):
-        if isinstance(self.source, Rule):
-            nodes = self.source.product_nodes
-        elif isinstance(self.source, RuleList):
-            nodes = sum([r.product_nodes for r in self.source if isinstance(r, Rule)], [])
-        else:
-            nodes = []
+        nodes = []
+        for src in self.sources:
+            if isinstance(src, Rule):
+                nodes.extend(src.product_nodes)
+            elif isinstance(src, RuleList):
+                nodes.extend(sum([r.product_nodes for r in src if isinstance(r, Rule)], []))
         return self._src_nodes + nodes
 
     @property
@@ -148,7 +148,7 @@ class Rule(object):
     def is_compatible(self, other):
         if not self.use.is_compatible(other.use):
             return False
-        return self.use.is_compatible(other.use, self.options)
+        return self.use.is_compatible(other.use, self.opts)
 
     ##
     ## Scan for files.
@@ -163,7 +163,8 @@ class Rule(object):
                 dir = self.base if self.base is not None else '.'
                 ptrn = src
                 files = self.match_sources(dir, ptrn)
-                self._src_nodes = [self.ctx.file(f) for f in files]
+                self._src_nodes = files
+                # self._src_nodes = [self.ctx.file(f) for f in files]
                 mapping[src] = self._src_nodes
 
         return mapping
@@ -181,17 +182,17 @@ class Rule(object):
     ## There will be dependants that are marked as sources, which
     ## will be the recipients of the products.
     ##
-    def expand(self, ctx):
+    def expand(self):
         logging.debug('Rule: Expanding rule: %s'%repr(self))
 
         # Only perform expansion if the rule is enabled.
-        if self.condition is None or bool(self.condition):
+        if self.cond is None or bool(self.cond):
 
             # The Use knows how to convert the sources into productions.
             # A production is a transformation from source to product,
             # in the form of a tuple with three elements, a tuple of sources,
             # a builder, and a tuple of products.
-            self.productions = self.use.expand(self.source_nodes, self.options)
+            self.productions = self.use.expand(self.source_nodes, self.opts)
             if self.productions is None:
                 self.productions = []
             logging.debug('Rule: Have productions: %s'%repr(self.productions))
@@ -210,6 +211,7 @@ class Rule(object):
                     dst.builder = bldr
 
         logging.debug('Rule: Done expanding rule.')
+        return self.productions
 
     def match_sources(self, dir, expr):
         logging.debug('Rule: Matching files.')
@@ -243,7 +245,7 @@ class Rule(object):
         self.use.use_existing(ex.use)
 
     def save_data(self, db):
-        opts = self.options.get() if self.options else {}
+        opts = self.opts.get() if self.opts else {}
         return {
             'use': db.key(self.use),
             'options': json.dumps(opts)
@@ -251,7 +253,7 @@ class Rule(object):
 
     def load_data(self, data):
         self.use = data['use']
-        self.options = data['options'] if 'options' in data else None
+        self.opts = data['options'] if 'options' in data else None
         self.children = []
         self.parents = []
         self.sources = []
