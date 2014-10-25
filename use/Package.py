@@ -1,4 +1,4 @@
-import sys, os, pickle, logging, json
+import sys, os, pickle, logging, json, inspect
 from .Node import Node
 from .File import File
 from .Builder import Builder
@@ -8,7 +8,7 @@ from .Options import OptionParser
 from .Installer import Installer
 from .apply import apply
 from .conv import to_list
-from .utils import strip_missing, make_dirs, split_class, load_class
+from .utils import strip_missing, make_dirs, split_class, load_class, findattr
 
 ##
 ## A package installation. Packages may have multiple
@@ -142,15 +142,20 @@ class Installation(Node):
 ##
 class Version(object):
 
-    def __init__(self, package=None):
+    def __init__(self, package=None, bins=None, hdrs=None, libs=None, ftrs=None, **kwargs):
         self.package = package
         self.installations = []
+        self.producers = [p(self) if inspect.isclass(p) else p
+                          for p in to_list(findattr('producers', [self, self.package], []))]
+        self.productions = []
         self.url = getattr(self, 'url', None)
         if self.package is not None:
             self.dependencies = [package.ctx.new_use(d) for d in (self.dependencies if hasattr(self, 'dependencies') else [])]
 
         # Set my version name.
-        if not hasattr(self, 'version'):
+        if 'name' in kwargs:
+            self.version = kwargs['name']
+        elif not hasattr(self, 'version'):
             ver = str(self.__class__)
             self.version = ver[ver.rfind('.') + 1:ver.rfind('\'')].lower()
         self.name = self.version
@@ -160,6 +165,16 @@ class Version(object):
         self._potential_locations = []
         self._checked_locations = set()
         self._done_mine = False
+
+        # Override with dynamic values.
+        if bins:
+            self.binaries = to_list(bins)
+        if hdrs:
+            self.headers = to_list(hdrs)
+        if libs:
+            self.libraries = to_list(libs)
+        if ftrs:
+            self.features = to_list(ftrs)
         
         # If there are any missing fields, add an empty
         # list to prevent errors.
@@ -189,7 +204,13 @@ class Version(object):
         self.header_sub_dirs = getattr(self, 'header_sub_dirs', getattr(self.package, 'header_sub_dirs', []))
 
     def __eq__(self, op):
-        return self._ver == op._ver
+        if isinstance(op, Version):
+            return self.package == op.package and self.version == op.version
+        else:
+            return False
+
+    def __nonzero__(self):
+        return bool(self.binaries or self.headers or self.libraries or self.features)
 
     def __repr__(self):
         return '%s (%s)'%(self.package.name, self.version)
@@ -564,8 +585,9 @@ class Version(object):
     ##
     ## Return the options object for this version.
     ##
-    def options(self):
-        return self.package.options()
+    @property
+    def all_options(self):
+        return self.package.option_parser
 
     def _builder(self, sources, targets=[]):
         bldr = getattr(self, 'default_builder', self.package.default_builder)
@@ -585,6 +607,8 @@ class Version(object):
 class Package(object):
 
     def __init__(self, ctx=None, explicit=False):
+        self.producers = [p(self) if inspect.isclass(p) else p
+                          for p in to_list(findattr('producers', self, []))]
         self.default_builder = getattr(self, 'default_builder', Builder)
         self.default_target_node = getattr(self, 'default_target_node', File)
         self.ctx = ctx
@@ -592,8 +616,9 @@ class Package(object):
         self.name = self.name if hasattr(self, 'name') else self.__class__.__name__
         self.option_name = self.option_name if hasattr(self, 'option_name') else self.name.lower()
         self.environ_name = self.environ_name if hasattr(self, 'environ_name') else self.option_name.upper()
-        self.features = {} # must come before versions
-        self.versions = [v(self) for v in self.versions] if hasattr(self, 'versions') else []
+        self.all_features = {} # must come before versions
+        self.versions = [v(self) if inspect.isclass(v) else v
+                         for v in to_list(getattr(self, 'versions', []))]
         self._ver_map = dict([(v.name, v) for v in self.versions])
         self.option_parser = OptionParser()
         if self.ctx is not None:
@@ -619,6 +644,13 @@ class Package(object):
             else:
                 self.sub_packages = []
         self.super_packages = []
+
+        self._make_default_version()
+
+    def add_version(self, ver):
+        ver = [v(self) if inspect.isclass(v) else v for v in to_list(ver)]
+        self.versions.extend(ver)
+        self._ver_map.update(dict([(v.name, v) for v in ver]))
 
     ##
     ## Test for compatibility of option sets. Under certain conditions
@@ -659,13 +691,66 @@ class Package(object):
         return dict([(v, v.installations) for v in self.iter_versions() if v.installations])
 
     ##
+    ## Return all possible options for this package.
+    ##
+    @property
+    def all_options(self):
+        opts = {}
+        for ver in self.iter_versions():
+            b = ver.all_options
+            if opts:
+                new_opts = {}
+                for k, a in opts.iteritems():
+                    a_and_b = a.intersect(b)
+                    if a_and_b:
+                        new_opts[tuple(to_list(k) + [ver])] = a_and_b
+                    a_only = a.difference(b)
+                    if a_only:
+                        new_opts[k] = a_only
+                    b_only = b.difference(a)
+                    if b_only:
+                        new_opts[ver] = b_only
+                opts = new_opts
+            else:
+                opts[ver] = b
+        return opts
+
+    ##
+    ## Return all possible unique producers.
+    ##
+    @property
+    def all_producers(self):
+        prods = {}
+        for ver in self.iter_versions():
+            b = ver.producers
+            if prods:
+                new_prods = {}
+                for k, a in prods.iteritems():
+                    a_and_b = [p for p in a if p in b]
+                    if a_and_b:
+                        new_prods[tuple(to_list(k) + [ver])] = a_and_b
+                    a_only = [p for p in a if p not in b]
+                    if a_only:
+                        new_prods[k] = a_only
+                    b_only = [p for p in b if p not in a]
+                    if b_only:
+                        new_prods[ver] = b_only
+                prods = new_prods
+            else:
+                prods[ver] = b
+        return prods
+
+    ##
     ## Packages use their class type for comparison. This is
     ## to make sure only one exists in the graph at any time.
     ## The Package object is used to represent ALL packages of
     ## the given type.
     ##
     def __eq__(self, op):
-        return self.__class__ == op.__class__
+        if isinstance(op, Package):
+            return self.__class__ == op.__class__
+        else:
+            return False
 
     def __ne__(self, op):
         return not self.__eq__(op)
@@ -723,7 +808,7 @@ class Package(object):
                     yield dep
 
     def add_feature(self, ftr):
-        self.features.setdefault(ftr.name, {})[ftr.version] = ftr
+        self.all_features.setdefault(ftr.name, {})[ftr.version] = ftr
 
     def feature_use(self, name, use, options=None, cond=None):
         from .Feature import FeatureUse
@@ -899,8 +984,8 @@ class Package(object):
 
         # Add base directory selection if there is any of binaries,
         # headers or libraries to find.
+        name = self.option_name
         if has_any:
-            name = self.option_name
             self.ctx.arguments('--' + name + '-dir', help='base directory for %s'%self.name)
 
         # Check for usage of headers, binaries or libraries.
@@ -1052,3 +1137,12 @@ class Package(object):
 
     def resolve_set(self, root, use_set, inst, ver):
         return True
+
+    def _make_default_version(self):
+        bins = getattr(self, 'binaries', None)
+        hdrs = getattr(self, 'headers', None)
+        libs = getattr(self, 'libraries', None)
+        ftrs = getattr(self, 'features', None)
+        ver = Version(self, bins, hdrs, libs, ftrs, name='default')
+        if ver:
+            self.add_version(ver)

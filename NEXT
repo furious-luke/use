@@ -1,0 +1,7 @@
+** 2014-10-16
+Can now see producers for packages. Need to add features to the
+set of producers; at the moment features aren't considered when looking
+for producers.
+
+** 2014-10-26
+Can now search and check basic packages.

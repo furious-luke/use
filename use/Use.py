@@ -94,6 +94,14 @@ class Use(Node):
     def installations(self):
         return self.package.installations
 
+    @property
+    def all_options(self):
+        return self.package.all_options
+
+    @property
+    def all_producers(self):
+        return self.package.all_producers
+
     ##
     ## Search for potential installations.
     ##

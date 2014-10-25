@@ -7,3 +7,5 @@ from Node import Node
 from Installer import Installer
 import Action as actions
 import Scanner as scanners
+from Producer import Producer
+from Platform import platform

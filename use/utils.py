@@ -1,6 +1,7 @@
 import sys, os, shlex, errno, tempfile
 from subprocess import Popen, PIPE
 from Argument import ArgumentCheck
+from conv import to_list
 
 def getarg(name, args, kwargs, required=True):
     if name in kwargs:
@@ -10,6 +11,16 @@ def getarg(name, args, kwargs, required=True):
     if required:
         raise KeyError
     return None, args
+
+def findattr(name, objs, default=None):
+    objs = to_list(objs)
+    for o in objs:
+        if hasattr(o, name):
+            return getattr(o, name)
+    return default
+
+def defattr(val, obj, name, default=None):
+    return val if val is not None else getattr(obj, name, default)
 
 def split_class(path):
     idx = path.rfind('.')

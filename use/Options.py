@@ -128,12 +128,26 @@ class OptionParser(object):
     def __init__(self):
         self._opts = OrderedDict()
 
+    def __repr__(self):
+        return ','.join(self.names)
+
+    def __bool__(self):
+        return bool(self._opts)
+
+    def __nonzero__(self):
+        return self.__bool__()
+
+    @property
+    def names(self):
+        return self._opts.keys()
+
     def add(self, *args, **kwargs):
         if len(kwargs) == 0 and len(args) == 1 and isinstance(args[0], Option):
             opt = args[0]
         else:
             opt = Option(*args, **kwargs)
         self._opts[opt.name] = opt
+        return opt
 
     def __call__(self, bin, *args, **kwargs):
 
@@ -165,6 +179,22 @@ class OptionParser(object):
         elif opt_str is None:
             return {}
         assert 0, 'Not implemented yet.'
+
+    def intersect(self, op):
+        name_set = set(self._opts.keys())
+        res = OptionParser()
+        for k, v in op._opts.iteritems():
+            if k in name_set:
+                res.add(k, v)
+        return res
+
+    def difference(self, op):
+        name_set = set(op._opts.keys())
+        res = OptionParser()
+        for k, v in self._opts.iteritems():
+            if k not in name_set:
+                res.add(k, v)
+        return res
 
 class OptionDict(object):
 

@@ -1,45 +1,38 @@
 import os, logging
 import use
-from ..Platform import platform
-from ..Action import Command
-from ..Scanner import CScanner
 
-class default(use.Version):
-    binaries = ['gcc']
-
-    def actions(self, inst, sources, targets=[], options={}):
-        return [Command(self.package.options(), inst.binaries[0])]
-
-class gcc(use.Package):
-    default_binary_filename = 'a.out'
-    versions = [default]
+class GccProducer(use.Producer):
 
     def __init__(self, *args, **kwargs):
-        super(gcc, self).__init__(*args, **kwargs)
-        add = self.option_parser.add
-        add('compile', '-c')
-        add('profile', '-pg')
-        add('pic', '-fPIC')
-        add('openmp', '-fopenmp')
-        add('cxx11', '-std=c++11')
-        add('optimise', '-O', space=False)
-        add('symbols', '-g')
-        if platform.os_name == 'darwin':
-            add('shared_lib', text='-dynamiclib -install_name {target.abspath} -undefined dynamic_lookup')
+        super(GccProducer, self).__init__(*args, **kwargs)
+        self.option('compile', '-c', help='compile to objects but do not link')
+        self.option('profile', '-pg', help='add profiling information')
+        self.option('pic', '-fPIC', help='position independent code')
+        self.option('openmp', '-fopenmp', help='enable openmp')
+        self.option('cxx11', '-std=c++11', help='enable C++11 standard')
+        self.option('optimise', '-O', space=False, help='produce optimised code')
+        self.option('symbols', '-g', help='include symbol information')
+        if use.platform.os_name == 'darwin':
+            o = self.option('shared_lib', text='-dynamiclib -install_name {target.abspath} -undefined dynamic_lookup')
         else:
-            add('shared_lib', '-shared')
-        add('define', '-D', space=False)
-        add('targets', '-o')
-        add('header_dirs', '-I')
-        add('library_dirs', '-L')
-        if platform.os_name != 'darwin':
-            add('rpath_dirs', '-Wl,-rpath=', space=False, abspath=True)
-        add('sources')
-        add('libraries', '-l', space=False)
-        if platform.os_name == 'darwin':
-            add('coverage', text='')
+            o = self.option('shared_lib', '-shared')
+        o.help = 'produce a shared library'
+        self.option(o)
+        self.option('define', '-D', space=False, help='add preprocessor definition')
+        self.option('target', '-o', help='production target')
+        self.option('header_dirs', '-I', help='header search directories')
+        self.option('library_dirs', '-L', help='library search directories')
+        if use.platform.os_name != 'darwin':
+            self.option('rpath_dirs', '-Wl,-rpath=', space=False, abspath=True, help='rpath search directories')
+        self.option('sources', help='production sources')
+        self.option('libraries', '-l', space=False, help='extra libraries')
+        if use.platform.os_name == 'darwin':
+            o = self.option('coverage', text='')
         else:
-            add('coverage', text='-fprofile-arcs -ftest-coverage')
+            o = self.option('coverage', text='-fprofile-arcs -ftest-coverage')
+        o.help = 'include code coverage information'
+        self.option('target_suffix', help='prepend to target name')
+        self.option('target_prefix', help='append to target name')
 
     ##
     ## gcc's productions. The standard gcc production will
@@ -48,29 +41,63 @@ class gcc(use.Package):
     def make_productions(self, nodes, inst, opts):
         logging.debug('gcc: Making productions.')
 
-        # Setup the mapping from source extensions to destination extensions.
-        if 'suffix' not in opts:
-            opts['suffix'] = '.os' if opts.get('pic', False) else '.o'
+        # Handle the mode (compile or link).
+        if opts.get('compile'):
+            if 'target_suffix' not in opts:
+                opts['target_suffix'] = '.os' if opts.get('pic') else '.o'
+        else:
+            if 'target_suffix' not in opts:
+                if opts.get('shared_lib'):
+                    opts['target_suffix'] = '.so'
+            if 'target_prefix' not in opts:
+                if opts.get('shared_lib') == True:
+                    opts['target_prefix'] = 'lib'
 
         # If profiling is selected, we must also have symbols.
-        if opts.get('profile', False) == True:
+        if opts.get('profile') == True:
             opts['symbols'] = True
 
-        # Single target or multitarget?
-        single = not opts.get('compile', False)
+        # Compiling is necessarily multitarget. Linking can be either, but
+        # defaults to true as we typically link to a single target.
+        if opts.get('compile'):
+            single = True
+        else:
+            single = opts.get('single', True)
 
         # Have the platform order the library directories as appropriate.
         if 'library_dirs' in opts:
             opts['library_dirs'] = platform.order_library_dirs(opts['library_dirs'])
 
-        # Call parent.
+        # Call parent to make the list of productions.
         prods = super(gcc, self).make_productions(nodes, inst, opts, single=single)
-
-        # Prepare the scanners for each node.
-        for n in nodes:
-            if n.scanner is None:
-                if os.path.splitext(str(n))[1].lower() in ['.c', '.cc', '.cxx', '.cpp']:
-                    n.scanner = CScanner(self.ctx)
 
         logging.debug('gcc: Done making productions.')
         return prods
+
+    ##
+    ## Add scanners to C source code.
+    ##
+    def add_scanners(self, prods):
+
+        # Process each source node in the productions.
+        for s, b, t in nodes:
+            for n in s:
+
+                # Don't try to apply the scanner twice.
+                if n.scanner is None:
+
+                    # Only apply to source code.
+                    if os.path.splitext(str(n))[1].lower() in ['.c', '.cc', '.cxx', '.cpp']:
+                        n.scanner = CScanner(self.ctx)
+
+class CompileProducer(GccProducer):
+    source_pattern = '(?P<name>.)\.(?:c|C)'
+    target_pattern = '{name}.o'
+
+class LinkProducer(GccProducer):
+    source_pattern = '(?P<name>.)\.os?'
+    target_pattern = 'a.out'
+
+class gcc(use.Package):
+    producers = [CompileProducer, LinkProducer]
+    binaries = ['gcc']
