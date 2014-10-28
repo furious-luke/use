@@ -5,3 +5,8 @@ for producers.
 
 ** 2014-10-26
 Can now search and check basic packages.
+
+** 2014-10-27
+Finished iteration over producers. Next time finish matching producers
+to nodes. Then, need to be able to expand out rule trees with 'or'd
+components for matches that have multiple producers.

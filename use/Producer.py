@@ -41,6 +41,18 @@ class Producer(object):
     def __eq__(self, op):
         return self.__class__ == op.__class__
 
+    def match(self, nodes):
+        for node in nodes:
+            okay = False
+            for sp in to_list(self.source_pattern):
+                prog = re.compile(sp)
+                if prog.match(str(node)):
+                    okay = True
+                    break
+            if not okay:
+                return False
+        return True
+
     def option(self, *args, **kwargs):
         return self.option_parser.add(*args, **kwargs)
 

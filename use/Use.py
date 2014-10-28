@@ -102,6 +102,9 @@ class Use(Node):
     def all_producers(self):
         return self.package.all_producers
 
+    def match_producer(self, nodes):
+        return self.package.match_producer(nodes)
+
     ##
     ## Search for potential installations.
     ##

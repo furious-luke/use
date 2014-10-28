@@ -239,6 +239,20 @@ class Version(object):
                     yield dep
 
     ##
+    ## Iterate over all available producers provided by this version.
+    ##
+    def iter_producers(self, seen=None):
+        if seen is None:
+            seen = set()
+        for prod in self.producers:
+            if prod not in seen:
+                seen.add(prod)
+                yield prod
+        for ftr in self.features:
+            for prod in ftr.iter_producers(seen):
+                yield prod
+
+    ##
     ## Search for locations.
     ##
     def search(self):
@@ -609,6 +623,8 @@ class Package(object):
     def __init__(self, ctx=None, explicit=False):
         self.producers = [p(self) if inspect.isclass(p) else p
                           for p in to_list(findattr('producers', self, []))]
+        self.appliers = [a(self) if inspect.isclass(a) else a
+                         for a in to_list(findattr('appliers', self, []))]
         self.default_builder = getattr(self, 'default_builder', Builder)
         self.default_target_node = getattr(self, 'default_target_node', File)
         self.ctx = ctx
@@ -626,6 +642,7 @@ class Package(object):
         self.uses = []
 
         # Setup sub-packages.
+        self.sub_packages = []
         if self.ctx is not None:
             if hasattr(self, 'sub_packages'):
                 pkgs = []
@@ -789,11 +806,11 @@ class Package(object):
                 yield ver
 
     def iter_sub_packages(self):
-        type = getattr(self.ctx.arguments, self.option_name + '-type', None)
-        if type is not None:
-            for s in self.sub_packages:
-                if s.option_name == type:
-                    return iter([s])
+        # type = getattr(self.ctx.arguments, self.option_name + '-type', None)
+        # if type is not None:
+        #     for s in self.sub_packages:
+        #         if s.option_name == type:
+        #             return iter([s])
         return iter(self.sub_packages)
 
     def iter_dependencies(self):
@@ -801,11 +818,25 @@ class Package(object):
         for dep in self.dependencies:
             done.add(dep.package.__class__)
             yield dep
-        for ver in self.iter_versions:
+        for ver in self.iter_versions():
             for dep in ver.iter_dependencies():
                 if dep.package.__class__ not in done:
                     done.add(dep.package.__class__)
                     yield dep
+
+    ##
+    ## Iterate over all producers provided by this package,
+    ## its versions and their features.
+    ##
+    def iter_producers(self, seen=None):
+        if seen is None:
+            seen = set()
+        for prod in self.producers:
+            seen.add(prod)
+            yield prod
+        for ver in self.iter_versions():
+            for prod in ver.iter_producers(seen):
+                yield prod
 
     def add_feature(self, ftr):
         self.all_features.setdefault(ftr.name, {})[ftr.version] = ftr
@@ -815,6 +846,14 @@ class Package(object):
         ftr_use = FeatureUse(name, use, options, cond)
         self.ctx.uses.append(ftr_use)
         return ftr_use
+
+    def match_producer(self, nodes):
+        import pdb
+        pdb.set_trace()
+        for prod in self.producers:
+            if prod.match(nodes):
+                return prod
+        return None
 
     ##
     ## Default productions operation. Each version may have its
