@@ -15,7 +15,10 @@ def getarg(name, args, kwargs, required=True):
 def findattr(name, objs, default=None):
     objs = to_list(objs)
     for o in objs:
-        if hasattr(o, name):
+        if isinstance(o, dict):
+            if name in o:
+                return o[name]
+        elif hasattr(o, name):
             return getattr(o, name)
     return default
 

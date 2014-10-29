@@ -2,7 +2,7 @@ from unittest import TestCase
 from use.Package import Version
 from use.Feature import Feature
 
-class VersionTests(TestCase):
+class IterProducersTests(TestCase):
 
     def setUp(self):
         self.basic = Version()
@@ -18,13 +18,12 @@ class VersionTests(TestCase):
         self.dup.features[0].producers = ['c', 'd']
         self.dup.features[1].producers = ['e', 'f']
 
-    def test_iter_producers_no_features(self):
+    def test_no_features(self):
         self.assertEqual(list(self.basic.iter_producers()), ['a', 'b'])
 
-    def test_iter_producers_with_features(self):
+    def test_with_features(self):
         self.assertEqual(list(self.feat.iter_producers()), ['a', 'b', 'c', 'd', 'e', 'f'])
 
-    def test_iter_producers_with_duplicates(self):
+    def test_with_duplicates(self):
         val = list(self.dup.iter_producers())
         self.assertEqual(val, ['a', 'b', 'c', 'd', 'e', 'f'])
-

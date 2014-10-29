@@ -1,3 +1,4 @@
+import re
 from Options import OptionParser
 from conv import to_list
 from utils import findattr
@@ -7,10 +8,10 @@ from utils import findattr
 ##
 class Producer(object):
 
-    def __init__(self, version):
+    def __init__(self, version, **kwargs):
         self.version = version
-        self.source_pattern = findattr('source_pattern', self, [])
-        self.target_pattern = findattr('target_pattern', self, [])
+        self.source_pattern = findattr('source_pattern', [kwargs, self], [])
+        self.target_pattern = findattr('target_pattern', [kwargs, self], [])
         self.option_parser = OptionParser()
 
     def __repr__(self):
@@ -41,7 +42,16 @@ class Producer(object):
     def __eq__(self, op):
         return self.__class__ == op.__class__
 
+    ##
+    ## Test if this producer matches all nodes in a list.
+    ##
+    ## @param[in] nodes  nodes to match against
+    ## @returns          match or not
+    ##
     def match(self, nodes):
+        nodes = to_list(nodes)
+        if not nodes:
+            return False
         for node in nodes:
             okay = False
             for sp in to_list(self.source_pattern):

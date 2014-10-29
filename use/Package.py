@@ -559,6 +559,16 @@ class Version(object):
         return self.package.actions(inst, *args, **kwargs)
 
     ##
+    ## Find a producer that matches a set of nodes. By default
+    ## calls the owning package's `match_producer` method.
+    ##
+    ## @param[in] nodes  nodes to match against
+    ## @returns          a producer or None
+    ##
+    def match_producer(self, nodes):
+        return self.package.match_producer(nodes)
+
+    ##
     ##
     ##
     def _find_files(self, files, dirs):
@@ -847,10 +857,14 @@ class Package(object):
         self.ctx.uses.append(ftr_use)
         return ftr_use
 
+    ##
+    ## Find a producer that matches a set of nodes.
+    ##
+    ## @param[in] nodes  nodes to match against
+    ## @returns          a producer or None
+    ##
     def match_producer(self, nodes):
-        import pdb
-        pdb.set_trace()
-        for prod in self.producers:
+        for prod in self.iter_producers():
             if prod.match(nodes):
                 return prod
         return None
