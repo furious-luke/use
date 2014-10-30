@@ -50,23 +50,23 @@ class MatchProducersTests(TestCase):
 
     def test_no_producers(self):
         self.pkg.producers = []
-        self.assertEqual(self.pkg.match_producer(self.first_nodes), None)
-        self.assertEqual(self.pkg.match_producer(self.second_nodes), None)
+        self.assertEqual(self.pkg.match_producers(self.first_nodes), [])
+        self.assertEqual(self.pkg.match_producers(self.second_nodes), [])
 
     def test_no_nodes(self):
-        self.assertEqual(self.pkg.match_producer(None), None)
-        self.assertEqual(self.pkg.match_producer([]), None)
+        self.assertEqual(self.pkg.match_producers(None), [])
+        self.assertEqual(self.pkg.match_producers([]), [])
 
     def test_first_producer(self):
         self.pkg.producers = [self.producers[0]]
-        self.assertEqual(self.pkg.match_producer(self.first_nodes), self.pkg.producers[0])
-        self.assertEqual(self.pkg.match_producer(self.second_nodes), None)
+        self.assertEqual(self.pkg.match_producers(self.first_nodes), [self.pkg.producers[0]])
+        self.assertEqual(self.pkg.match_producers(self.second_nodes), [])
 
     def test_later_producer(self):
         self.pkg.producers = [self.producers[0], self.producers[2]]
-        self.assertEqual(self.pkg.match_producer(self.second_nodes), self.pkg.producers[1])
-        self.assertEqual(self.pkg.match_producer(self.occluded_nodes), None)
+        self.assertEqual(self.pkg.match_producers(self.second_nodes), [self.pkg.producers[1]])
+        self.assertEqual(self.pkg.match_producers(self.occluded_nodes), [])
 
     def test_occluded(self):
-        self.assertEqual(self.pkg.match_producer(self.occluded_nodes), self.pkg.producers[1])
-        self.assertEqual(self.pkg.match_producer(self.not_occluded_nodes), self.pkg.producers[3])
+        self.assertEqual(self.pkg.match_producers(self.occluded_nodes), [self.pkg.producers[1], self.pkg.producers[3]])
+        self.assertEqual(self.pkg.match_producers(self.not_occluded_nodes), [self.pkg.producers[3]])

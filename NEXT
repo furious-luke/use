@@ -10,3 +10,14 @@ Iteration of producers from packages and versions.
 ** 2014-10-29
 Matching producers from Uses, Packages and Versions for
 sets of nodes.
+
+** 2014-10-30
+ * Matching producers now returns all matched producers.
+ * Added a label to rules.
+ * Can print a tree of rules.
+
+** ?
+ * Call producer to get production.
+
+** ?
+ * Create production graph.

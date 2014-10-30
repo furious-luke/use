@@ -78,7 +78,7 @@ class RuleList(object):
 
 class Rule(object):
 
-    def __init__(self, sources, use=None, cond=None, base=None, options={}):
+    def __init__(self, sources, use=None, cond=None, base=None, options={}, **kwargs):
 
         # The rule can be initialised from some kind of dictionary, indicating
         # it was loaded from storage.
@@ -95,6 +95,7 @@ class Rule(object):
             self.parents = []
             self.product_nodes = []
             self.productions = []
+            self.label = kwargs.pop('label', None)
             self._src_nodes = []
 
             # Add myself as a child to any sources which are rules.
@@ -103,7 +104,10 @@ class Rule(object):
                     s.add_children(self)
 
     def __repr__(self):
-        return '"%s"'%str(self.sources) + ' -> ' + str(self.use)
+        if self.label is not None:
+            return self.label
+        else:
+            return '"%s"'%str(self.sources) + ' -> ' + str(self.use)
 
     def __eq__(self, op):
         if type(self) != type(op):

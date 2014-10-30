@@ -559,14 +559,14 @@ class Version(object):
         return self.package.actions(inst, *args, **kwargs)
 
     ##
-    ## Find a producer that matches a set of nodes. By default
-    ## calls the owning package's `match_producer` method.
+    ## Find any producers that matches a set of nodes. By default
+    ## calls the owning package's `match_producers` method.
     ##
     ## @param[in] nodes  nodes to match against
     ## @returns          a producer or None
     ##
-    def match_producer(self, nodes):
-        return self.package.match_producer(nodes)
+    def match_producers(self, nodes):
+        return self.package.match_producers(nodes)
 
     ##
     ##
@@ -858,16 +858,14 @@ class Package(object):
         return ftr_use
 
     ##
-    ## Find a producer that matches a set of nodes.
+    ## Find any producers that matches a set of nodes. All producers that
+    ## match are returned.
     ##
     ## @param[in] nodes  nodes to match against
-    ## @returns          a producer or None
+    ## @returns          list of producers
     ##
-    def match_producer(self, nodes):
-        for prod in self.iter_producers():
-            if prod.match(nodes):
-                return prod
-        return None
+    def match_producers(self, nodes):
+        return [p for p in self.iter_producers() if p.match(nodes)]
 
     ##
     ## Default productions operation. Each version may have its

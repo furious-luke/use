@@ -677,3 +677,23 @@ class Context(object):
     def find_node(self, path):
         path = self.norm_path(path)
         return self._node_map.get(path, None)
+
+    ##
+    ## Print a pretty ascii representation of the rules tree.
+    ##
+    def print_rule_tree(self):
+
+        # Use `asciitree` for this.
+        try:
+            import asciitree
+        except ImportError:
+            print 'Cannot print rule tree, please install `asciitree` first.'
+            return
+
+        # Print each parent individually.
+        for rule in self.rules:
+            if not rule.children:
+                print asciitree.draw_tree(rule, self._iter_rule_children),
+
+    def _iter_rule_children(self, rule):
+        return iter(rule.parents)

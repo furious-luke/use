@@ -75,6 +75,7 @@ globals_dict = {
     'identity': identity,
     'dummies': dummies,
     'configure': ctx.configure,
+    'print_rules': ctx.print_rule_tree,
 }
 
 # Try to execute the build script.
