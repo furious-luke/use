@@ -16,8 +16,11 @@ sets of nodes.
  * Added a label to rules.
  * Can print a tree of rules.
 
+** 2014-10-31
+ * Minor bug fixes.
+
 ** ?
- * Call producer to get production.
+ * Begin testing make productions.
 
 ** ?
  * Create production graph.

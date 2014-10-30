@@ -652,7 +652,6 @@ class Package(object):
         self.uses = []
 
         # Setup sub-packages.
-        self.sub_packages = []
         if self.ctx is not None:
             if hasattr(self, 'sub_packages'):
                 pkgs = []
@@ -667,9 +666,10 @@ class Package(object):
                 # Flag all packages except the first to skip downloading.
                 for pkg in self.sub_packages[1:]:
                     pkg._skip = True
-
             else:
                 self.sub_packages = []
+        else:
+            self.sub_packages = []
         self.super_packages = []
 
         self._make_default_version()

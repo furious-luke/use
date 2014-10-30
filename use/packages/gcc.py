@@ -91,11 +91,11 @@ class GccProducer(use.Producer):
                         n.scanner = CScanner(self.ctx)
 
 class CompileProducer(GccProducer):
-    source_pattern = '(?P<name>.)\.(?:c|C)'
+    source_pattern = '(?P<name>.*)\.(?:c|C)$'
     target_pattern = '{name}.o'
 
 class LinkProducer(GccProducer):
-    source_pattern = '(?P<name>.)\.os?'
+    source_pattern = '(?P<name>.*)\.os?$'
     target_pattern = 'a.out'
 
 class gcc(use.Package):
