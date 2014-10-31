@@ -105,6 +105,11 @@ class Use(Node):
     def match_producers(self, nodes):
         return self.package.match_producers(nodes)
 
+    def match_versions(self, rules):
+        if rules is None:
+            rules = self.rules
+        return self.package.match_versions(rules)
+
     ##
     ## Search for potential installations.
     ##

@@ -18,6 +18,15 @@ sets of nodes.
 
 ** 2014-10-31
  * Minor bug fixes.
+ * Can match producers from a Use (version) to
+   a set of rules and their nodes, but only if all rules and
+   nodes are matched by the same version.
+
+** ?
+Need to be able to produce a list of mappings from Uses to
+versions. These mappings will represent a possible configuration
+that would satisfy all required rules and as many optional rules
+as possible.
 
 ** ?
  * Begin testing make productions.

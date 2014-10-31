@@ -70,3 +70,45 @@ class MatchProducersTests(TestCase):
     def test_occluded(self):
         self.assertEqual(self.pkg.match_producers(self.occluded_nodes), [self.pkg.producers[1], self.pkg.producers[3]])
         self.assertEqual(self.pkg.match_producers(self.not_occluded_nodes), [self.pkg.producers[3]])
+
+class MatchVersionsTests(TestCase):
+
+    def setUp(self):
+        self.producers = [
+            Producer(None, source_pattern='first\d+'),
+            Producer(None, source_pattern=['second\d+', 'third\d+']),
+            Producer(None, source_pattern='third\d+'),
+        ]
+        self.pkg = Package()
+        self.pkg.versions = [
+            Version(self.pkg),
+            Version(self.pkg),
+            Version(self.pkg),
+        ]
+        self.pkg.versions[0].producers = [self.producers[0]]
+        self.pkg.versions[1].producers = [self.producers[1]]
+        self.pkg.versions[2].producers = [self.producers[2]]
+        self.first_rules  = [
+            type('', (object,), {'source_nodes': 'first1'}),
+        ]
+        self.second_rules = [
+            type('', (object,), {'source_nodes': 'second1'}),
+        ]
+        self.third_rules = [
+            type('', (object,), {'source_nodes': 'third1'}),
+        ]
+
+    def test_no_versions(self):
+        self.pkg.versions = []
+        self.assertEqual(self.pkg.match_versions(self.first_rules), [])
+
+    def test_no_rules(self):
+        self.assertEqual(self.pkg.match_versions(None), [])
+        self.assertEqual(self.pkg.match_versions([]), [])
+
+    def test_match_individual(self):
+        self.assertEqual(self.pkg.match_versions(self.first_rules), [self.pkg.versions[0]])
+        self.assertEqual(self.pkg.match_versions(self.second_rules), [self.pkg.versions[1]])
+
+    def test_match_multiple(self):
+        self.assertEqual(self.pkg.match_versions(self.third_rules), [self.pkg.versions[1], self.pkg.versions[2]])

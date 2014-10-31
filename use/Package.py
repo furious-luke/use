@@ -566,7 +566,7 @@ class Version(object):
     ## @returns          a producer or None
     ##
     def match_producers(self, nodes):
-        return self.package.match_producers(nodes)
+        return [p for p in self.iter_producers() if p.match(nodes)]
 
     ##
     ##
@@ -866,6 +866,26 @@ class Package(object):
     ##
     def match_producers(self, nodes):
         return [p for p in self.iter_producers() if p.match(nodes)]
+
+    ##
+    ## Find all versions that contain producers such that all rules can
+    ## be matched.
+    ##
+    ## @param[in] rules  rules to match against
+    ## @returns          list of versions
+    ##
+    def match_versions(self, rules):
+        matches = []
+        rules = to_list(rules)
+        for ver in self.iter_versions():
+            okay = bool(rules)
+            for rule in rules:
+                if not ver.match_producers(rule.source_nodes):
+                    okay = False
+                    break
+            if okay:
+                matches.append(ver)
+        return matches
 
     ##
     ## Default productions operation. Each version may have its
